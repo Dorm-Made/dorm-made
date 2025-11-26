@@ -44,13 +44,13 @@ async def create_event_endpoint(
     image: Annotated[Optional[UploadFile], File()] = None
 ):
     """Create a new culinary event with optional image upload"""
-    # Parse price: convert to float if provided and not empty, otherwise None
-    price_float = None
+    # Parse price: convert to int (cents) if provided and not empty, otherwise None
+    price_int = None
     if price and str(price).strip():
         try:
-            price_float = float(price)
+            price_int = int(price)
         except (ValueError, TypeError):
-            price_float = None
+            price_int = None
 
     # Construct EventCreate object from form data
     event_data = EventCreate(
@@ -60,7 +60,7 @@ async def create_event_endpoint(
         max_participants=max_participants,
         location=location,
         event_date=event_date,
-        price=price_float
+        price=price_int
     )
 
     return await event_service.create_event(event_data, current_user_id, db, image)

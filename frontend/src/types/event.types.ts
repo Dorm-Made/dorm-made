@@ -10,7 +10,7 @@ export interface Event {
   eventDate: string;
   location: string;
   imageUrl?: string;
-  price?: number;
+  price: number;
   createdAt: string;
 }
 
@@ -20,7 +20,7 @@ export interface EventCreate {
   maxParticipants: number;
   eventDate: string;
   location: string;
-  price?: number;
+  price: number;
 }
 
 export interface EventUpdate {

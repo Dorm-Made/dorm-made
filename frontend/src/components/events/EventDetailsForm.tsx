@@ -4,6 +4,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Upload, X } from "lucide-react";
 import { EventFormData } from "@/hooks/use-create-event-form";
+import { formatPriceForDisplay, handlePriceInput, handlePriceBackspace } from "@/utils/price";
 
 interface EventDetailsFormProps {
   formData: EventFormData;
@@ -23,6 +24,19 @@ export default function EventDetailsForm({
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     onInputChange({ [name]: value });
+  };
+
+  const handlePriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newValue = handlePriceInput(formData.price || "0", e.target.value);
+    onInputChange({ price: newValue });
+  };
+
+  const handlePriceKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Backspace" || e.key === "Delete") {
+      e.preventDefault();
+      const newValue = handlePriceBackspace(formData.price || "0");
+      onInputChange({ price: newValue });
+    }
   };
 
   return (
@@ -91,19 +105,26 @@ export default function EventDetailsForm({
 
           {/* Price */}
           <div>
-            <Label htmlFor="price">Price (US$)</Label>
-            <Input
-              id="price"
-              name="price"
-              type="number"
-              step="0.01"
-              min="0"
-              value={formData.price}
-              onChange={handleInputChange}
-              placeholder="0.00"
-            />
+            <Label htmlFor="price">Price (USD)</Label>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                $
+              </span>
+              <Input
+                id="price"
+                name="price"
+                type="text"
+                value={formatPriceForDisplay(formData.price || "0")}
+                onChange={handlePriceChange}
+                onKeyDown={handlePriceKeyDown}
+                placeholder="0.00"
+                className="pl-7"
+                inputMode="numeric"
+                required
+              />
+            </div>
             <p className="text-sm text-muted-foreground mt-1">
-              Optional - Set the price per participant
+              Price per participant in dollars
             </p>
           </div>
 

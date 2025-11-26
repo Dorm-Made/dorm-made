@@ -12,6 +12,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Event, EventUpdate } from "@/types";
 import { Loader2 } from "lucide-react";
+import {
+  formatPriceForDisplay,
+  handlePriceInput,
+  handlePriceBackspace,
+  initializePriceFromCents,
+  getPriceInCents
+} from "@/utils/price";
 
 interface EditEventDialogProps {
   isOpen: boolean;
@@ -54,7 +61,7 @@ export function EditEventDialog({
     maxParticipants: String(event.maxParticipants),
     location: event.location,
     eventDate: formatDateForInput(event.eventDate),
-    price: event.price !== undefined ? String(event.price) : "",
+    price: initializePriceFromCents(event.price),
   });
 
   const handleInputChange = (
@@ -67,17 +74,29 @@ export function EditEventDialog({
     }));
   };
 
+  const handlePriceChangeLocal = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newValue = handlePriceInput(formData.price || "0", e.target.value);
+    setFormData((prev) => ({ ...prev, price: newValue }));
+  };
+
+  const handlePriceKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Backspace" || e.key === "Delete") {
+      e.preventDefault();
+      const newValue = handlePriceBackspace(formData.price || "0");
+      setFormData((prev) => ({ ...prev, price: newValue }));
+    }
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Convert form data to EventUpdate format
     const updates: EventUpdate = {
       title: formData.title,
       description: formData.description,
       maxParticipants: parseInt(formData.maxParticipants),
       location: formData.location,
       eventDate: formData.eventDate,
-      price: formData.price ? parseFloat(formData.price) : undefined,
+      price: getPriceInCents(formData.price),
     };
 
     onSave(updates);
@@ -151,19 +170,26 @@ export function EditEventDialog({
 
             {/* Price */}
             <div>
-              <Label htmlFor="price">Price (US$)</Label>
-              <Input
-                id="price"
-                name="price"
-                type="number"
-                step="0.01"
-                min="0"
-                value={formData.price}
-                onChange={handleInputChange}
-                placeholder="0.00"
-              />
+              <Label htmlFor="price">Price (USD)</Label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                  $
+                </span>
+                <Input
+                  id="price"
+                  name="price"
+                  type="text"
+                  value={formatPriceForDisplay(formData.price || "0")}
+                  onChange={handlePriceChangeLocal}
+                  onKeyDown={handlePriceKeyDown}
+                  placeholder="0.00"
+                  className="pl-7"
+                  inputMode="numeric"
+                  required
+                />
+              </div>
               <p className="text-sm text-muted-foreground mt-1">
-                Optional - Set the price per participant
+                Price per participant in dollars
               </p>
             </div>
 

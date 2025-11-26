@@ -9,18 +9,18 @@ class EventBase(BaseModel):
     description: str
     max_participants: int
     location: str
-    price: Optional[float] = None
+    price: int
 
 class EventCreate(EventBase):
     event_date: str  # Accept as string from frontend
 
 class EventUpdate(BaseModel):
-    title: Optional[str] = None
-    description: Optional[str] = None
-    max_participants: Optional[int] = None
-    location: Optional[str] = None
-    event_date: Optional[str] = None  # Accept as string from frontend
-    price: Optional[float] = None
+    title: str
+    description: str
+    max_participants: int
+    location: str
+    event_date: str
+    price: int
 
 class Event(EventBase):
     id: str

@@ -14,6 +14,7 @@ import { useImageUpload } from "@/hooks/use-image-upload";
 import { useMeals } from "@/hooks/use-meals";
 import { useToast } from "@/hooks/use-toast";
 import { createEvent, getAuthToken } from "@/services";
+import { getPriceInCents } from "@/utils/price";
 
 export default function CreateEvent() {
   const [loading, setLoading] = useState(false);
@@ -45,7 +46,9 @@ export default function CreateEvent() {
     payload.append("event_date", formData.eventDate);
     payload.append("location", formData.location);
     payload.append("meal_id", selectedMeal!.id);
-    payload.append("price", formData.price);
+
+    // Price is already in cents
+    payload.append("price", getPriceInCents(formData.price).toString());
 
     if (selectedImage) {
       payload.append("image", selectedImage);
