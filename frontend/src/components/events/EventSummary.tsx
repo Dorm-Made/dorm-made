@@ -2,6 +2,7 @@ import { EventFormData } from "@/hooks/use-create-event-form";
 import { Meal } from "@/types";
 import { Calendar, MapPin, Users, DollarSign, ChefHat } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { formatPriceForDisplay } from "@/utils/price";
 
 interface EventSummaryProps {
   selectedMeal: Meal | null;
@@ -110,12 +111,12 @@ export default function EventSummary({
               </span>
             </div>
 
-            {formData.price && parseFloat(formData.price) > 0 && (
-              <div className="flex items-center gap-2">
-                <DollarSign className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm">${parseFloat(formData.price).toFixed(2)} per participant</span>
-              </div>
-            )}
+            <div className="flex items-center gap-2">
+              <DollarSign className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm">
+                ${formatPriceForDisplay(formData.price || "0")} per participant
+              </span>
+            </div>
           </div>
         </CardContent>
       </Card>

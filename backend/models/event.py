@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Integer, Float, DateTime, ForeignKey, Text, Boolean
+from sqlalchemy import Column, String, Integer, Float, DateTime, ForeignKey, Text, Boolean, INTEGER
 from sqlalchemy.sql import func
 from sqlalchemy.dialects.postgresql import UUID
 from utils.database import Base
@@ -18,6 +18,6 @@ class EventModel(Base):
     location = Column(String, nullable=False)
     event_date = Column(DateTime(timezone=True), nullable=False)
     image_url = Column(String, nullable=True)
-    price = Column(Float, nullable=True)
+    price = Column(INTEGER, nullable=False)
     is_deleted = Column(Boolean, default=True, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)

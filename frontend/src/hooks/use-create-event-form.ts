@@ -17,7 +17,7 @@ export function useCreateEventForm() {
     maxParticipants: "",
     eventDate: "",
     location: "",
-    price: "",
+    price: "0",
   });
 
   const updateFormData = useCallback((updates: Partial<EventFormData>) => {
@@ -31,6 +31,7 @@ export function useCreateEventForm() {
       "maxParticipants",
       "eventDate",
       "location",
+      "price",
     ];
     return requiredFields.every((field) => {
       const value = formData[field];
