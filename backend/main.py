@@ -14,10 +14,18 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],  # Allows all origins
     allow_credentials=False,  # Set to False when using wildcard origins
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],  # Explicit methods
+    allow_methods=[
+        "GET",
+        "POST",
+        "PUT",
+        "DELETE",
+        "OPTIONS",
+        "PATCH",
+    ],  # Explicit methods
     allow_headers=["*"],  # Allows all headers
     expose_headers=["*"],  # Expose all headers
 )
+
 
 # Debug middleware to log all requests
 @app.middleware("http")
@@ -33,15 +41,19 @@ async def log_requests(request: Request, call_next):
     print(f"[RESPONSE] {response.status_code}")
     return response
 
+
 # Include routers
 app.include_router(users.router)
 app.include_router(events.router)
 app.include_router(meals.router)
 
+
 @app.get("/")
 async def root():
     return {"message": "Welcome to Dorm Made - Culinary Social Network API"}
 
+
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(app, host="0.0.0.0", port=8000)

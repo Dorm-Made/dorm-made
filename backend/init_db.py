@@ -2,6 +2,7 @@
 Database initialization script
 Creates all tables defined in SQLAlchemy models
 """
+
 from utils.database import engine, Base
 
 from models.user import UserModel

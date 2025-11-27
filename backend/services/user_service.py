@@ -21,6 +21,7 @@ async def get_user(user_id: str, db: Session) -> Optional[User]:
     except Exception as e:
         print(f"Error getting user: {e}")
         import traceback
+
         traceback.print_exc()
         return None
 
@@ -29,7 +30,9 @@ async def create_user(user: UserCreate, db: Session) -> User:
     """Create a new user"""
     try:
         # Check if user with email already exists
-        existing_user = db.query(UserModel).filter(UserModel.email == user.email).first()
+        existing_user = (
+            db.query(UserModel).filter(UserModel.email == user.email).first()
+        )
         if existing_user:
             raise HTTPException(status_code=400, detail="Email already registered")
 
@@ -43,7 +46,7 @@ async def create_user(user: UserCreate, db: Session) -> User:
             email=user.email,
             hashed_password=hashed_password,
             university=user.university,
-            description=user.description
+            description=user.description,
         )
 
         db.add(user_model)
@@ -92,7 +95,7 @@ async def authenticate_user(login_data: UserLogin, db: Session) -> LoginResponse
     return LoginResponse(
         access_token=access_token,
         token_type="bearer",
-        user=user_model_to_schema(user_model)
+        user=user_model_to_schema(user_model),
     )
 
 
@@ -121,6 +124,7 @@ async def update_user(user_id: str, user_update: UserUpdate, db: Session) -> Use
         db.rollback()
         print(f"Error updating user: {e}")
         import traceback
+
         traceback.print_exc()
         raise HTTPException(status_code=400, detail=f"Error updating user: {str(e)}")
 
@@ -132,14 +136,18 @@ async def search_users(query: str, db: Session, limit: int = 10) -> List[User]:
             return []
 
         # Use ilike for case-insensitive search
-        user_models = db.query(UserModel).filter(
-            UserModel.name.ilike(f"%{query.strip()}%")
-        ).limit(limit).all()
+        user_models = (
+            db.query(UserModel)
+            .filter(UserModel.name.ilike(f"%{query.strip()}%"))
+            .limit(limit)
+            .all()
+        )
 
         return user_models_to_schemas(user_models)
     except Exception as e:
         print(f"Error searching users: {e}")
         import traceback
+
         traceback.print_exc()
         raise HTTPException(status_code=400, detail=f"Error searching users: {str(e)}")
 
@@ -152,15 +160,14 @@ async def upload_profile_picture(user_id: str, image: UploadFile, db: Session) -
         if image.content_type not in allowed_types:
             raise HTTPException(
                 status_code=400,
-                detail="Tipo de arquivo inválido. Apenas imagens JPEG e PNG são permitidas."
+                detail="Tipo de arquivo inválido. Apenas imagens JPEG e PNG são permitidas.",
             )
 
         # Validate file size (5MB max)
         contents = await image.read()
         if len(contents) > 5 * 1024 * 1024:  # 5MB in bytes
             raise HTTPException(
-                status_code=400,
-                detail="Tamanho do arquivo excede o limite de 5MB."
+                status_code=400, detail="Tamanho do arquivo excede o limite de 5MB."
             )
 
         # Get current user to check for existing profile picture
@@ -174,28 +181,32 @@ async def upload_profile_picture(user_id: str, image: UploadFile, db: Session) -
             try:
                 # Extract filename from URL
                 if "profile-pictures/" in old_picture_url:
-                    old_filename = old_picture_url.split("profile-pictures/")[-1].split("?")[0]
+                    old_filename = old_picture_url.split("profile-pictures/")[-1].split(
+                        "?"
+                    )[0]
                     supabase.storage.from_("profile-pictures").remove([old_filename])
             except Exception as e:
                 print(f"Error deleting old profile picture: {e}")
                 # Continue with upload even if deletion fails
 
         # Generate unique filename
-        file_extension = image.filename.split('.')[-1] if image.filename else 'jpg'
+        file_extension = image.filename.split(".")[-1] if image.filename else "jpg"
         unique_filename = f"{user_id}_{uuid.uuid4()}_{int(datetime.now().timestamp())}.{file_extension}"
 
         # Upload to Supabase Storage
         result = supabase.storage.from_("profile-pictures").upload(
-            unique_filename,
-            contents,
-            {"content-type": image.content_type}
+            unique_filename, contents, {"content-type": image.content_type}
         )
 
         # Get public URL
-        public_url = supabase.storage.from_("profile-pictures").get_public_url(unique_filename)
+        public_url = supabase.storage.from_("profile-pictures").get_public_url(
+            unique_filename
+        )
 
         # Update user profile with new picture URL
-        updated_user = await update_user(user_id, UserUpdate(profile_picture=public_url), db)
+        updated_user = await update_user(
+            user_id, UserUpdate(profile_picture=public_url), db
+        )
 
         return updated_user
     except HTTPException:
@@ -203,5 +214,8 @@ async def upload_profile_picture(user_id: str, image: UploadFile, db: Session) -
     except Exception as e:
         print(f"Error uploading profile picture: {e}")
         import traceback
+
         traceback.print_exc()
-        raise HTTPException(status_code=400, detail=f"Erro ao fazer upload da foto: {str(e)}")
+        raise HTTPException(
+            status_code=400, detail=f"Erro ao fazer upload da foto: {str(e)}"
+        )

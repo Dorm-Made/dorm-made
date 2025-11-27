@@ -3,6 +3,7 @@ from pydantic.alias_generators import to_camel
 from datetime import datetime
 from typing import Optional
 
+
 class EventBase(BaseModel):
     meal_id: str
     title: str
@@ -11,8 +12,10 @@ class EventBase(BaseModel):
     location: str
     price: int
 
+
 class EventCreate(EventBase):
     event_date: str  # Accept as string from frontend
+
 
 class EventUpdate(BaseModel):
     title: str
@@ -21,6 +24,7 @@ class EventUpdate(BaseModel):
     location: str
     event_date: str
     price: int
+
 
 class Event(EventBase):
     id: str
@@ -35,5 +39,5 @@ class Event(EventBase):
         from_attributes=True,
         alias_generator=to_camel,
         populate_by_name=True,
-        by_alias=True
+        by_alias=True,
     )

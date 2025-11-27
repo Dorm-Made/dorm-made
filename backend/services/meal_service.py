@@ -19,30 +19,31 @@ async def upload_meal_image(image: UploadFile) -> str:
         if image.content_type not in allowed_types:
             raise HTTPException(
                 status_code=400,
-                detail="Invalid file type. Please select a JPEG, PNG, or WebP image"
+                detail="Invalid file type. Please select a JPEG, PNG, or WebP image",
             )
 
         # Validate file size (5MB max)
         contents = await image.read()
         if len(contents) > 5 * 1024 * 1024:  # 5MB in bytes
             raise HTTPException(
-                status_code=400,
-                detail="File size must be less than 5MB"
+                status_code=400, detail="File size must be less than 5MB"
             )
 
         # Generate unique filename
-        file_extension = image.filename.split('.')[-1] if image.filename else 'jpg'
-        unique_filename = f"{uuid.uuid4()}_{int(datetime.now().timestamp())}.{file_extension}"
+        file_extension = image.filename.split(".")[-1] if image.filename else "jpg"
+        unique_filename = (
+            f"{uuid.uuid4()}_{int(datetime.now().timestamp())}.{file_extension}"
+        )
 
         # Upload to Supabase Storage (using meal-images bucket)
         result = supabase.storage.from_("meal-images").upload(
-            unique_filename,
-            contents,
-            {"content-type": image.content_type}
+            unique_filename, contents, {"content-type": image.content_type}
         )
 
         # Get public URL
-        public_url = supabase.storage.from_("meal-images").get_public_url(unique_filename)
+        public_url = supabase.storage.from_("meal-images").get_public_url(
+            unique_filename
+        )
 
         return public_url
     except HTTPException:
@@ -57,7 +58,7 @@ async def create_meal(
     ingredients: str,
     user_id: str,
     db: Session,
-    image: Optional[UploadFile] = None
+    image: Optional[UploadFile] = None,
 ) -> Meal:
     """Create a new meal with optional image upload"""
     # Verify user exists
@@ -97,22 +98,27 @@ async def create_meal(
 async def get_user_meals(user_id: str, db: Session) -> List[Meal]:
     """Get all meals created by a specific user (excluding deleted ones)"""
     try:
-        meal_models = db.query(MealModel).filter(
-            MealModel.user_id == user_id,
-            MealModel.is_deleted == False
-        ).order_by(MealModel.created_at.desc()).all()
+        meal_models = (
+            db.query(MealModel)
+            .filter(MealModel.user_id == user_id, MealModel.is_deleted == False)
+            .order_by(MealModel.created_at.desc())
+            .all()
+        )
         return meal_models_to_schemas(meal_models)
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Error fetching user meals: {str(e)}")
+        raise HTTPException(
+            status_code=400, detail=f"Error fetching user meals: {str(e)}"
+        )
 
 
 async def get_meal(meal_id: str, db: Session) -> Meal:
     """Get a specific meal by ID (excluding deleted ones)"""
     try:
-        meal_model = db.query(MealModel).filter(
-            MealModel.id == meal_id,
-            MealModel.is_deleted == False
-        ).first()
+        meal_model = (
+            db.query(MealModel)
+            .filter(MealModel.id == meal_id, MealModel.is_deleted == False)
+            .first()
+        )
         if not meal_model:
             raise HTTPException(status_code=404, detail="Meal not found")
         return meal_model_to_schema(meal_model)
@@ -125,18 +131,22 @@ async def get_meal(meal_id: str, db: Session) -> Meal:
 def get_meal_name(meal_id: str, db: Session) -> str:
     """Get meal name by ID - returns empty string if not found (excluding deleted ones)"""
     try:
-        meal_model = db.query(MealModel).filter(
-            MealModel.id == meal_id,
-            MealModel.is_deleted == False
-        ).first()
+        meal_model = (
+            db.query(MealModel)
+            .filter(MealModel.id == meal_id, MealModel.is_deleted == False)
+            .first()
+        )
         return meal_model.title if meal_model else ""
     except Exception:
         return ""
 
 
-async def update_meal(meal_id: str, meal_update: MealUpdate, user_id: str, db: Session) -> Meal:
+async def update_meal(
+    meal_id: str, meal_update: MealUpdate, user_id: str, db: Session
+) -> Meal:
     """Update an existing meal (only the creator can update)"""
     from typing import Dict, Any
+
     # Get the meal
     meal_model = db.query(MealModel).filter(MealModel.id == meal_id).first()
     if not meal_model:
@@ -144,7 +154,9 @@ async def update_meal(meal_id: str, meal_update: MealUpdate, user_id: str, db: S
 
     # Verify that the user is the creator
     if meal_model.user_id != user_id:
-        raise HTTPException(status_code=403, detail="Only the meal creator can update the meal")
+        raise HTTPException(
+            status_code=403, detail="Only the meal creator can update the meal"
+        )
 
     try:
         # Update only the fields that are provided
@@ -171,6 +183,7 @@ async def update_meal(meal_id: str, meal_update: MealUpdate, user_id: str, db: S
 async def soft_delete_meal(meal_id: str, user_id: str, db: Session) -> Dict[str, str]:
     """Soft delete a meal (only the creator can delete)"""
     from typing import Dict
+
     # Get the meal (including deleted ones for this operation)
     meal_model = db.query(MealModel).filter(MealModel.id == meal_id).first()
     if not meal_model:
@@ -182,7 +195,9 @@ async def soft_delete_meal(meal_id: str, user_id: str, db: Session) -> Dict[str,
 
     # Verify that the user is the creator
     if meal_model.user_id != user_id:
-        raise HTTPException(status_code=403, detail="Only the meal creator can delete the meal")
+        raise HTTPException(
+            status_code=403, detail="Only the meal creator can delete the meal"
+        )
 
     try:
         # Soft delete: set is_deleted to True

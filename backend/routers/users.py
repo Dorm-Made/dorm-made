@@ -9,54 +9,68 @@ from services import user_service
 
 router = APIRouter(prefix="/users", tags=["users"])
 
+
+@router.post("/users/{user_id}/stripe/connect")
+async def create_stripe_connect(
+    current_user_id: Annotated[str, Depends(get_current_user_id)],
+    db: Session = Depends(get_db),
+):
+    user = await user_service.get_user(current_user_id, db)
+
+
 @router.post("/", response_model=User)
 async def create_user_endpoint(user: UserCreate, db: Session = Depends(get_db)):
     """Create a new user"""
     return await user_service.create_user(user, db)
+
 
 @router.post("/login", response_model=LoginResponse)
 async def login_endpoint(login_data: UserLogin, db: Session = Depends(get_db)):
     """Authenticate user and return JWT token"""
     return await user_service.authenticate_user(login_data, db)
 
-@router.get("/test")
-async def test_endpoint():
-    """Test endpoint to verify users router is working"""
-    return {"message": "Users router is working"}
 
 @router.get("/search", response_model=List[User])
-async def search_users_endpoint(query: str, limit: int = 10, db: Session = Depends(get_db)):
+async def search_users_endpoint(
+    query: str, limit: int = 10, db: Session = Depends(get_db)
+):
     """Search users by name"""
     return await user_service.search_users(query, db, limit)
 
-# More specific routes should come BEFORE generic ones to avoid routing conflicts
+
 @router.post("/{user_id}/profile-picture", response_model=User)
 async def upload_profile_picture_endpoint(
     user_id: str,
     image: Annotated[UploadFile, File()],
     current_user_id: Annotated[str, Depends(get_current_user_id)],
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """Upload a profile picture for the user (only the authenticated user can upload their own picture)"""
     if current_user_id != user_id:
-        raise HTTPException(status_code=403, detail="Você só pode fazer upload da sua própria foto de perfil")
+        raise HTTPException(
+            status_code=403,
+            detail="Você só pode fazer upload da sua própria foto de perfil",
+        )
 
     return await user_service.upload_profile_picture(user_id, image, db)
+
 
 @router.patch("/{user_id}", response_model=User)
 async def update_user_profile_endpoint(
     user_id: str,
     user_update: UserUpdate,
     current_user_id: Annotated[str, Depends(get_current_user_id)],
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """Update user profile (only the authenticated user can update their own profile)"""
     if current_user_id != user_id:
-        raise HTTPException(status_code=403, detail="You can only update your own profile")
+        raise HTTPException(
+            status_code=403, detail="You can only update your own profile"
+        )
 
     return await user_service.update_user(user_id, user_update, db)
 
-# Generic route last
+
 @router.get("/{user_id}", response_model=User)
 async def get_user_by_id_endpoint(user_id: str, db: Session = Depends(get_db)):
     """Get user by ID"""

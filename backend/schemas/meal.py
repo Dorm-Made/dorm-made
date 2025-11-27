@@ -12,11 +12,13 @@ class MealBase(BaseModel):
 
 class MealCreate(MealBase):
     """Schema for creating a meal (used with FormData)"""
+
     pass
 
 
 class MealUpdate(BaseModel):
     """Schema for updating a meal"""
+
     title: Optional[str] = None
     description: Optional[str] = None
     ingredients: Optional[str] = None
@@ -24,6 +26,7 @@ class MealUpdate(BaseModel):
 
 class Meal(MealBase):
     """Schema for returning meal data"""
+
     id: str
     user_id: str
     image_url: Optional[str] = None
@@ -33,5 +36,5 @@ class Meal(MealBase):
         from_attributes=True,
         alias_generator=to_camel,
         populate_by_name=True,
-        by_alias=True
+        by_alias=True,
     )
