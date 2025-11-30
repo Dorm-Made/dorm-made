@@ -23,6 +23,8 @@ def user_model_to_schema(user_model: UserModel) -> User:
         university=user_model.university,
         description=user_model.description,
         profile_picture=user_model.profile_picture,
+        stripe_account_id=user_model.stripe_account_id,
+        stripe_onboarding_complete=user_model.stripe_onboarding_complete,
         created_at=user_model.created_at,
     )
 

@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 
 from routers import users, events, meals
+from routers.gateways.stripe import webhook
 
 load_dotenv()
 
@@ -46,6 +47,7 @@ async def log_requests(request: Request, call_next):
 app.include_router(users.router)
 app.include_router(events.router)
 app.include_router(meals.router)
+app.include_router(webhook.router)
 
 
 @app.get("/")
@@ -56,4 +58,4 @@ async def root():
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)

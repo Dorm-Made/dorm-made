@@ -219,3 +219,57 @@ async def upload_profile_picture(user_id: str, image: UploadFile, db: Session) -
         raise HTTPException(
             status_code=400, detail=f"Erro ao fazer upload da foto: {str(e)}"
         )
+
+
+async def update_stripe_account(
+    user_id: str, stripe_account_id: str, db: Session
+) -> User:
+    try:
+        user_model = db.query(UserModel).filter(UserModel.id == user_id).first()
+        if not user_model:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        user_model.stripe_account_id = stripe_account_id
+        db.commit()
+        db.refresh(user_model)
+
+        return user_model_to_schema(user_model)
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=400, detail=f"Error updating user: {str(e)}")
+
+
+async def update_stripe_status(
+    user_id: str, onboarding_complete: bool, db: Session
+) -> User:
+    try:
+        user_model = db.query(UserModel).filter(UserModel.id == user_id).first()
+        if not user_model:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        user_model.stripe_onboarding_complete = onboarding_complete
+        db.commit()
+        db.refresh(user_model)
+
+        return user_model_to_schema(user_model)
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=400, detail=f"Error updating stripe status: {str(e)}"
+        )
+
+
+def get_user_by_stripe_account(stripe_account_id: str, db: Session) -> Optional[UserModel]:
+    try:
+        return (
+            db.query(UserModel)
+            .filter(UserModel.stripe_account_id == stripe_account_id)
+            .first()
+        )
+    except Exception as e:
+        print(f"Error finding user by Stripe account: {e}")
+        return None

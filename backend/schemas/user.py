@@ -3,13 +3,14 @@ from typing import Optional
 from datetime import datetime
 
 
-# Pydantic models
 class UserBase(BaseModel):
     name: str
     email: str
     university: Optional[str] = None
     description: Optional[str] = None
     profile_picture: Optional[str] = None
+    stripe_account_id: Optional[str] = None
+    stripe_onboarding_complete: Optional[bool] = None
 
 
 class UserCreate(UserBase):

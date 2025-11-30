@@ -3,19 +3,60 @@ from typing import List, Annotated
 from sqlalchemy.orm import Session
 
 from schemas.user import User, UserCreate, UserLogin, UserUpdate, LoginResponse
+from schemas.stripe import StripeConnectResponse, StripeStatusResponse
 from utils.auth import get_current_user_id
 from utils.database import get_db
+from utils.config import config
 from services import user_service
+from services.gateways import stripe_service
 
 router = APIRouter(prefix="/users", tags=["users"])
 
 
-@router.post("/users/{user_id}/stripe/connect")
+@router.post("/stripe/connect", response_model=StripeConnectResponse)
 async def create_stripe_connect(
     current_user_id: Annotated[str, Depends(get_current_user_id)],
     db: Session = Depends(get_db),
 ):
     user = await user_service.get_user(current_user_id, db)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    result = await stripe_service.create_stripe_connect_account(
+        user.email, current_user_id
+    )
+    await user_service.update_stripe_account(current_user_id, result["account_id"], db)
+
+    return StripeConnectResponse(
+        onboarding_url=result["onboarding_url"], account_id=result["account_id"]
+    )
+
+
+@router.get("/stripe/status", response_model=StripeStatusResponse)
+async def get_stripe_status(
+    current_user_id: Annotated[str, Depends(get_current_user_id)],
+    db: Session = Depends(get_db),
+):
+    user = await user_service.get_user(current_user_id, db)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    if not user.stripe_account_id:
+        return StripeStatusResponse(
+            connected=False,
+            charges_enabled=False,
+            onboarding_complete=False,
+            account_id=None,
+        )
+
+    status = await stripe_service.get_stripe_account_status(user.stripe_account_id)
+
+    return StripeStatusResponse(
+        connected=True,
+        charges_enabled=status["charges_enabled"],
+        onboarding_complete=status["onboarding_complete"],
+        account_id=user.stripe_account_id,
+    )
 
 
 @router.post("/", response_model=User)

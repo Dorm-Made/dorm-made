@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, DateTime, Text
+from sqlalchemy import Column, String, DateTime, Text, Boolean
 from sqlalchemy.sql import func
 from sqlalchemy.dialects.postgresql import UUID
 from utils.database import Base
@@ -17,6 +17,8 @@ class UserModel(Base):
     university = Column(String, nullable=True)
     description = Column(Text, nullable=True)
     profile_picture = Column(String, nullable=True)
+    stripe_account_id = Column(String, nullable=True, index=True)
+    stripe_onboarding_complete = Column(Boolean, default=False, nullable=True)
     created_at = Column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
