@@ -8,11 +8,13 @@ import { Step, useCreateEvent } from "@/hooks/use-create-event";
 import SelectMeal from "@/components/events/SelectMeal";
 import EventDetailsForm from "@/components/events/EventDetailsForm";
 import EventSummary from "@/components/events/EventSummary";
+import StripeCheckStep from "@/components/events/StripeCheckStep";
 import { Button } from "@/components/ui/button";
 import { useCreateEventForm } from "@/hooks/use-create-event-form";
 import { useImageUpload } from "@/hooks/use-image-upload";
 import { useMeals } from "@/hooks/use-meals";
 import { useToast } from "@/hooks/use-toast";
+import { useStripeConnect } from "@/hooks/use-stripe-connect";
 import { createEvent, getAuthToken } from "@/services";
 import { getPriceInCents } from "@/utils/price";
 
@@ -37,6 +39,8 @@ export default function CreateEvent() {
   const { selectedImage, imagePreview, handleImageChange, handleRemoveImage } = useImageUpload();
 
   const { meals, loading: mealsLoading, selectedMeal, selectMeal } = useMeals();
+
+  const { canAcceptPayments } = useStripeConnect();
 
   const buildPayload = () => {
     const payload = new FormData();
@@ -118,6 +122,8 @@ export default function CreateEvent() {
 
   const canProceedToNext = () => {
     switch (currentStep) {
+      case Step.STRIPE_CHECK:
+        return canAcceptPayments;
       case Step.MEAL:
         return selectedMeal !== null;
       case Step.EVENT_DETAILS:
@@ -125,12 +131,14 @@ export default function CreateEvent() {
       case Step.SUMMARY:
         return true;
       default:
-        return canGoNext();
+        return false;
     }
   };
 
   const renderStepContent = () => {
     switch (currentStep) {
+      case Step.STRIPE_CHECK:
+        return <StripeCheckStep />;
       case Step.MEAL:
         return (
           <SelectMeal

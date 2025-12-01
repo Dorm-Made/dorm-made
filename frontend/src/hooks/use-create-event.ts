@@ -1,16 +1,17 @@
 import { useState, useCallback, useMemo } from "react";
 
 export enum Step {
+  STRIPE_CHECK = "STRIPE_CHECK",
   MEAL = "MEAL",
   EVENT_DETAILS = "EVENT_DETAILS",
   SUMMARY = "SUMMARY",
 }
 
 export function useCreateEvent() {
-  const [currentStep, setCurrentStep] = useState<Step>(Step.MEAL);
+  const [currentStep, setCurrentStep] = useState<Step>(Step.STRIPE_CHECK);
   const [isCompleted, setIsCompleted] = useState<boolean>(false);
 
-  const steps = useMemo(() => [Step.MEAL, Step.EVENT_DETAILS, Step.SUMMARY], []);
+  const steps = useMemo(() => [Step.STRIPE_CHECK, Step.MEAL, Step.EVENT_DETAILS, Step.SUMMARY], []);
 
   const getCurrentStepIndex = useCallback(() => {
     return steps.indexOf(currentStep);
@@ -29,26 +30,15 @@ export function useCreateEvent() {
   }, [getCurrentStepIndex]);
 
   const canGoNext = useCallback(() => {
-    const currentIndex = getCurrentStepIndex();
-    if (currentIndex >= steps.length - 1) return false;
-
-    // Validation rules per step
-    switch (currentStep) {
-      case Step.MEAL:
-        return true;
-      case Step.EVENT_DETAILS:
-        return true;
-      default:
-        return false;
-    }
-  }, [getCurrentStepIndex, steps, currentStep]);
+    return getCurrentStepIndex() < steps.length - 1;
+  }, [getCurrentStepIndex, steps]);
 
   const nextStep = useCallback(() => {
-    if (canGoNext()) {
-      const currentIndex = getCurrentStepIndex();
+    const currentIndex = getCurrentStepIndex();
+    if (currentIndex < steps.length - 1) {
       setCurrentStep(steps[currentIndex + 1]);
     }
-  }, [canGoNext, getCurrentStepIndex, steps]);
+  }, [getCurrentStepIndex, steps]);
 
   const complete = useCallback(() => {
     setIsCompleted(true);

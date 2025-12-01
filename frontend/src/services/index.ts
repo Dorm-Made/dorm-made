@@ -17,3 +17,6 @@ export * from "./event.service";
 
 // Meal Service
 export * from "./meal.service";
+
+// Stripe Service
+export * from "./stripe.service";

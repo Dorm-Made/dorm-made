@@ -22,6 +22,14 @@ async def create_stripe_connect(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
+    if user.stripe_account_id:
+        onboarding_url = await stripe_service.create_account_link(
+            user.stripe_account_id, current_user_id, "account_onboarding"
+        )
+        return StripeConnectResponse(
+            onboarding_url=onboarding_url, account_id=user.stripe_account_id
+        )
+
     result = await stripe_service.create_stripe_connect_account(
         user.email, current_user_id
     )
@@ -50,6 +58,10 @@ async def get_stripe_status(
         )
 
     status = await stripe_service.get_stripe_account_status(user.stripe_account_id)
+
+    await user_service.update_stripe_status(
+        current_user_id, status["onboarding_complete"], db
+    )
 
     return StripeStatusResponse(
         connected=True,

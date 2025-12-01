@@ -51,13 +51,15 @@ async def get_stripe_account_status(stripe_account_id: str) -> Dict[str, Any]:
         raise HTTPException(status_code=400, detail=f"Stripe API error: {str(e)}")
 
 
-async def create_account_link(stripe_account_id: str, user_id: str) -> str:
+async def create_account_link(
+    stripe_account_id: str, user_id: str, link_type: str
+) -> str:
     try:
         account_link = stripe.AccountLink.create(
             account=stripe_account_id,
             refresh_url=f"{config.FRONTEND_URL}/profile/{user_id}?stripe=refresh",
             return_url=f"{config.FRONTEND_URL}/profile/{user_id}?stripe=complete",
-            type="account_onboarding",
+            type=link_type,
             collection_options={
                 "fields": "eventually_due",
                 "future_requirements": "include",

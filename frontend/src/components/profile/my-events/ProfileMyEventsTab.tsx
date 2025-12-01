@@ -9,11 +9,7 @@ interface ProfileMyEventsTabProps {
   userName: string;
 }
 
-export function ProfileMyEventsTab({
-  userId,
-  isOwnProfile,
-  userName,
-}: ProfileMyEventsTabProps) {
+export function ProfileMyEventsTab({ userId, isOwnProfile, userName }: ProfileMyEventsTabProps) {
   const { userEvents, loadingEvents, refreshUserEvents } = useProfile(userId);
 
   if (loadingEvents) {

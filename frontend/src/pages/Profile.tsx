@@ -1,4 +1,5 @@
-import { useParams, Link, useNavigate } from "react-router-dom";
+import { useParams, Link, useNavigate, useSearchParams } from "react-router-dom";
+import { useEffect, useRef } from "react";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/home/Footer";
 import { Card, CardContent } from "@/components/ui/card";
@@ -9,7 +10,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { useProfile } from "@/hooks/use-profile";
 import { useProfilePhoto } from "@/hooks/use-profile-photo";
-import { ProfileTabs } from "@/components/user/ProfileTabs";
+import { useToast } from "@/hooks/use-toast";
+import { ProfileTabs } from "@/components/profile/ProfileTabs";
 import {
   GraduationCap,
   User as UserIcon,
@@ -24,6 +26,9 @@ import {
 export default function Profile() {
   const { userId } = useParams<{ userId: string }>();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const hasShownStripeToast = useRef(false);
+  const { toast } = useToast();
 
   const {
     user,
@@ -40,10 +45,31 @@ export default function Profile() {
 
   const { uploadingPhoto, fileInputRef, handleFileSelect, handleUploadPhoto } = useProfilePhoto(
     (updatedUser) => {
-      // Update profile hook state when photo is uploaded
       updateEditingUser(updatedUser);
     },
   );
+
+  useEffect(() => {
+    const stripeParam = searchParams.get("stripe");
+
+    if (stripeParam === "complete" && !hasShownStripeToast.current) {
+      hasShownStripeToast.current = true;
+
+      toast({
+        title: "Stripe Onboarding Complete!",
+        description: "Your payment account has been connected. Checking status...",
+        className: "bg-green-500 text-white border-green-600",
+        duration: 3000,
+      });
+
+      const tabParam = searchParams.get("tab");
+      if (tabParam) {
+        setSearchParams({ tab: tabParam });
+      } else {
+        setSearchParams({});
+      }
+    }
+  }, [searchParams, setSearchParams, toast]);
 
   const getInitials = (name: string) => {
     return name
@@ -307,6 +333,7 @@ export default function Profile() {
                 userId={userId || ""}
                 isOwnProfile={isOwnProfile()}
                 userName={user.name}
+                defaultTab={searchParams.get("tab") || "events"}
               />
             </CardContent>
           </Card>

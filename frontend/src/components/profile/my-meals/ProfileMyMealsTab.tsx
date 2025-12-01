@@ -65,12 +65,7 @@ export function ProfileMyMealsTab({ userId, isOwnProfile, userName }: ProfileMyM
   return (
     <div className="flex overflow-x-auto gap-4 pb-4 lg:grid lg:grid-cols-3 lg:gap-6 lg:overflow-visible">
       {meals.map((meal) => (
-        <MealCard
-          key={meal.id}
-          meal={meal}
-          expandOnTap={true}
-          onMealUpdated={fetchUserMeals}
-        />
+        <MealCard key={meal.id} meal={meal} expandOnTap={true} onMealUpdated={fetchUserMeals} />
       ))}
     </div>
   );
