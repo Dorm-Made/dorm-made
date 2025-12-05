@@ -9,3 +9,12 @@ export interface StripeStatusResponse {
   onboarding_complete: boolean;
   account_id: string | null;
 }
+
+export interface CreateCheckoutSessionResponse {
+  clientSecret: string;
+}
+
+export interface SessionStatusResponse {
+  status: string;
+  paymentStatus: string;
+}

@@ -70,10 +70,18 @@ async def create_account_link(
         raise HTTPException(status_code=400, detail=f"Stripe API error: {str(e)}")
 
 
-def validate_webhook_signature(payload: bytes, signature: str) -> Dict[str, Any]:
+def validate_webhook_signature(
+    payload: bytes, signature: str, use_connect: bool = False
+) -> Dict[str, Any]:
     try:
         event = stripe.Webhook.construct_event(
-            payload, signature, config.STRIPE_WEBHOOK_SECRET
+            payload,
+            signature,
+            (
+                config.STRIPE_CONNECT_WEBHOOK_SECRET
+                if use_connect
+                else config.STRIPE_WEBHOOK_SECRET
+            ),
         )
         return event
     except ValueError:

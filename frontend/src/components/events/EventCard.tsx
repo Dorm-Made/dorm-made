@@ -7,6 +7,7 @@ import { useMealDialog } from "@/hooks/use-meal-dialog";
 import { MealDialog } from "../meals/MealDialog";
 import { EditEventDialog } from "./EditEventDialog";
 import { DeleteEventDialog } from "./DeleteEventDialog";
+import { JoinEventDialog } from "./JoinEventDialog";
 import { useNavigate } from "react-router-dom";
 import { useEditEvent } from "@/hooks/use-edit-event";
 import { deleteEvent } from "@/services";
@@ -34,6 +35,7 @@ export function EventCard({
   const { toast } = useToast();
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isJoinDialogOpen, setIsJoinDialogOpen] = useState(false);
   const {
     isOpen: isEditDialogOpen,
     loading: isUpdating,
@@ -87,6 +89,27 @@ export function EventCard({
       console.error("Error deleting event:", err);
     } finally {
       setIsDeleting(false);
+    }
+  };
+
+  const handleJoinEventClick = () => {
+    if (!currentUser) {
+      toast({
+        title: "Authentication Required",
+        description: "Please log in to join events.",
+        variant: "destructive",
+        duration: 1500,
+      });
+      return;
+    }
+
+    setIsJoinDialogOpen(true);
+  };
+
+  const handleCloseJoinDialog = () => {
+    setIsJoinDialogOpen(false);
+    if (onEventUpdated) {
+      onEventUpdated();
     }
   };
 
@@ -177,10 +200,10 @@ export function EventCard({
             <Users className="h-4 w-4 mr-2" />
             {event.currentParticipants}/{event.maxParticipants} participants
           </div>
-          {activeTab === "all" && onJoinEvent && (
+          {activeTab === "all" && !isHost && (
             <Button
               className="mx-4 mt-8"
-              onClick={() => onJoinEvent(event.id)}
+              onClick={handleJoinEventClick}
               disabled={event.currentParticipants >= event.maxParticipants}
             >
               {event.currentParticipants >= event.maxParticipants ? "Event Full" : "Join Event"}
@@ -211,6 +234,12 @@ export function EventCard({
         event={event}
         loading={isDeleting}
         onConfirmDelete={handleConfirmDelete}
+      />
+
+      <JoinEventDialog
+        isOpen={isJoinDialogOpen}
+        onClose={handleCloseJoinDialog}
+        event={event}
       />
     </>
   );

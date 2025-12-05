@@ -6,4 +6,4 @@ export type { Meal, MealCreate, MealUpdate } from "./meal.types";
 
 export type { Event, EventCreate, EventUpdate, JoinEventRequest } from "./event.types";
 
-export type { StripeConnectResponse, StripeStatusResponse } from "./stripe.types";
+export type { StripeConnectResponse, StripeStatusResponse, CreateCheckoutSessionResponse, SessionStatusResponse } from "./stripe.types";
