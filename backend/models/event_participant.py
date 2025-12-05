@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, DateTime, ForeignKey
+from sqlalchemy import Column, String, DateTime, ForeignKey, Text, CheckConstraint
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.sql import func
 from utils.database import Base
@@ -19,4 +19,18 @@ class EventParticipantModel(Base):
     )
     joined_at = Column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    payment_intent_id = Column(Text, nullable=True, index=True)
+    status = Column(
+        String,
+        nullable=False,
+        default='confirmed',
+        server_default='confirmed'
+    )
+
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('confirmed', 'cancelled')",
+            name='valid_status'
+        ),
     )

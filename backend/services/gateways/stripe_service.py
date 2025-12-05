@@ -80,3 +80,68 @@ def validate_webhook_signature(payload: bytes, signature: str) -> Dict[str, Any]
         raise HTTPException(status_code=400, detail="Invalid payload")
     except stripe.error.SignatureVerificationError:
         raise HTTPException(status_code=400, detail="Invalid signature")
+
+
+async def create_checkout_session(
+    event_id: str,
+    event_title: str,
+    event_description: str,
+    price_cents: int,
+    chef_stripe_account_id: str,
+    foodie_id: str,
+    chef_id: str,
+) -> Dict[str, Any]:
+    try:
+        chef_amount = (price_cents * 84) // 100
+
+        session = stripe.checkout.Session.create(
+            ui_mode="embedded",
+            mode="payment",
+            payment_method_types=["card"],
+            line_items=[
+                {
+                    "price_data": {
+                        "currency": "usd",
+                        "product_data": {
+                            "name": event_title,
+                            "description": event_description,
+                        },
+                        "unit_amount": price_cents,
+                    },
+                    "quantity": 1,
+                }
+            ],
+            payment_intent_data={
+                "transfer_data": {
+                    "destination": chef_stripe_account_id,
+                    "amount": chef_amount,
+                },
+            },
+            metadata={
+                "event_id": event_id,
+                "foodie_id": foodie_id,
+                "chef_id": chef_id,
+            },
+            return_url=f"{config.FRONTEND_URL}/explore?session_id={{CHECKOUT_SESSION_ID}}",
+        )
+
+        return {"client_secret": session.client_secret}
+    except stripe.error.StripeError as e:
+        raise HTTPException(status_code=400, detail=f"Stripe API error: {str(e)}")
+
+
+async def retrieve_checkout_session(session_id: str) -> Dict[str, Any]:
+    try:
+        session = stripe.checkout.Session.retrieve(session_id)
+        return {
+            "status": session.status,
+            "payment_status": session.payment_status,
+        }
+    except stripe.error.InvalidRequestError:
+        raise HTTPException(status_code=400, detail="Invalid session")
+    except stripe.error.StripeError as e:
+        raise HTTPException(status_code=400, detail=f"Stripe API error: {str(e)}")
+
+
+async def retrieve_connected_account(stripe_account_id: str) -> Dict[str, Any]:
+    return await get_stripe_account_status(stripe_account_id)

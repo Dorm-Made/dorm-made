@@ -1,17 +1,19 @@
 from fastapi import HTTPException, UploadFile
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Tuple
 from sqlalchemy.orm import Session
 from datetime import datetime
 import uuid
 
 from models.event import EventModel
 from models.event_participant import EventParticipantModel
+from models.user import UserModel
 from schemas.event import Event, EventCreate, EventUpdate
 from schemas.event_participant import EventParticipant
 from utils.converters import event_model_to_schema, event_participant_models_to_schemas
 from utils.supabase import supabase
 from .user_service import get_user
 from .meal_service import get_meal_name
+from .gateways.stripe_service import retrieve_connected_account
 
 
 def get_event(event_id: str, db: Session) -> Optional[Event]:
@@ -39,6 +41,7 @@ def is_user_participating(event_id: str, user_id: str, db: Session) -> bool:
             .filter(
                 EventParticipantModel.event_id == event_id,
                 EventParticipantModel.participant_id == user_id,
+                EventParticipantModel.status == 'confirmed',
             )
             .first()
         )
@@ -139,67 +142,66 @@ async def create_event(
         raise HTTPException(status_code=400, detail=f"Error creating event: {str(e)}")
 
 
-async def join_event(join_request: Dict[str, Any], db: Session) -> Dict[str, str]:
-    """Join an existing event"""
-    user_id = (
-        join_request["user_id"]
-        if isinstance(join_request, dict)
-        else join_request.user_id
-    )
-    event_id = (
-        join_request["event_id"]
-        if isinstance(join_request, dict)
-        else join_request.event_id
-    )
+async def validate_checkout_requirements(
+    event_id: str, foodie_id: str, db: Session
+) -> Tuple[EventModel, UserModel]:
+    """Validate all requirements for creating a checkout session"""
+    event = db.query(EventModel).filter(
+        EventModel.id == event_id,
+        EventModel.is_deleted == False
+    ).first()
 
-    # Verify user exists
-    user = await get_user(user_id, db)
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-
-    # Verify event exists
-    event = get_event(event_id, db)
     if not event:
         raise HTTPException(status_code=404, detail="Event not found")
 
-    # Check if user is already the host
-    if event.host_user_id == str(user_id):
-        raise HTTPException(status_code=400, detail="Host cannot join their own event")
-
-    # Check if user is already participating
-    if is_user_participating(event_id, user_id, db):
+    if event.host_user_id == foodie_id:
         raise HTTPException(
-            status_code=400, detail="User is already participating in this event"
+            status_code=400,
+            detail="Host cannot join their own event"
         )
 
-    # Check if event is full
-    if event.current_participants >= event.max_participants:
+    existing_participation = db.query(EventParticipantModel).filter(
+        EventParticipantModel.event_id == event_id,
+        EventParticipantModel.participant_id == foodie_id,
+        EventParticipantModel.status == 'confirmed'
+    ).first()
+
+    if existing_participation:
+        raise HTTPException(
+            status_code=400,
+            detail="Already joined this event"
+        )
+
+    confirmed_count = db.query(EventParticipantModel).filter(
+        EventParticipantModel.event_id == event_id,
+        EventParticipantModel.status == 'confirmed'
+    ).count()
+
+    if confirmed_count >= event.max_participants:
         raise HTTPException(status_code=400, detail="Event is full")
 
-    try:
-        # Add participant to events_participants table
-        participant_model = EventParticipantModel(
-            id=str(uuid.uuid4()), event_id=event_id, participant_id=user_id
+    chef = db.query(UserModel).filter(
+        UserModel.id == event.host_user_id
+    ).first()
+
+    if not chef:
+        raise HTTPException(status_code=404, detail="Chef not found")
+
+    if not chef.stripe_account_id:
+        raise HTTPException(
+            status_code=400,
+            detail="Chef payment not configured"
         )
 
-        db.add(participant_model)
+    account_status = await retrieve_connected_account(chef.stripe_account_id)
 
-        # Update event participants count
-        event_model = db.query(EventModel).filter(EventModel.id == event_id).first()
-        if event_model:
-            event_model.current_participants += 1
-            db.commit()
-            return {"message": "Successfully joined the event", "event_id": event_id}
-        else:
-            db.rollback()
-            raise HTTPException(
-                status_code=400, detail="Failed to update participant count"
-            )
-    except HTTPException:
-        raise
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=400, detail=f"Error joining event: {str(e)}")
+    if not account_status.get("charges_enabled", False):
+        raise HTTPException(
+            status_code=400,
+            detail="Chef payment account not ready"
+        )
+
+    return event, chef
 
 
 async def list_events(db: Session) -> List[Event]:

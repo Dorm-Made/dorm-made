@@ -1,5 +1,6 @@
 from pydantic import BaseModel, ConfigDict
 from datetime import datetime
+from typing import Optional
 
 
 class EventParticipantBase(BaseModel):
@@ -8,12 +9,15 @@ class EventParticipantBase(BaseModel):
 
 
 class EventParticipantCreate(EventParticipantBase):
-    pass
+    payment_intent_id: Optional[str] = None
+    status: str = "confirmed"
 
 
 class EventParticipant(EventParticipantBase):
     id: str
     joined_at: datetime
+    payment_intent_id: Optional[str] = None
+    status: str
 
     model_config = ConfigDict(
         from_attributes=True, json_encoders={datetime: lambda v: v.isoformat()}

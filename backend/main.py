@@ -2,7 +2,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 
-from routers import users, events, meals
+from routers import users, events, meals, checkout
 from routers.gateways.stripe import webhook
 
 load_dotenv()
@@ -47,6 +47,7 @@ async def log_requests(request: Request, call_next):
 app.include_router(users.router)
 app.include_router(events.router)
 app.include_router(meals.router)
+app.include_router(checkout.router)
 app.include_router(webhook.router)
 
 
