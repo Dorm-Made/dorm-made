@@ -8,10 +8,10 @@ export enum Step {
 }
 
 export function useCreateEvent() {
-  const [currentStep, setCurrentStep] = useState<Step>(Step.STRIPE_CHECK);
+  const [currentStep, setCurrentStep] = useState<Step>(Step.MEAL);
   const [isCompleted, setIsCompleted] = useState<boolean>(false);
 
-  const steps = useMemo(() => [Step.STRIPE_CHECK, Step.MEAL, Step.EVENT_DETAILS, Step.SUMMARY], []);
+  const steps = useMemo(() => [Step.MEAL, Step.STRIPE_CHECK, Step.EVENT_DETAILS, Step.SUMMARY], []);
 
   const getCurrentStepIndex = useCallback(() => {
     return steps.indexOf(currentStep);

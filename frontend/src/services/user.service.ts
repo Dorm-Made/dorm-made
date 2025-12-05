@@ -1,22 +1,11 @@
 import { httpClient, getAuthToken } from "./http-client";
 import { User, UserCreate, UserUpdate } from "@/types";
 
-/**
- * User Service
- * Handles user-related API calls
- */
-
-/**
- * Create a new user (signup)
- */
 export const createUser = async (userData: UserCreate): Promise<User> => {
   const response = await httpClient.post("/users/", userData);
   return response.data;
 };
 
-/**
- * Get user by ID
- */
 export const getUser = async (userId: string): Promise<User> => {
   console.log(`Fetching user with ID: ${userId}`);
   console.log(`Full URL will be: ${httpClient.defaults.baseURL}/users/${userId}`);
@@ -25,9 +14,6 @@ export const getUser = async (userId: string): Promise<User> => {
   return response.data;
 };
 
-/**
- * Update user profile
- */
 export const updateUser = async (userId: string, userUpdate: UserUpdate): Promise<User> => {
   console.log(`Updating user ${userId} with:`, userUpdate);
   const response = await httpClient.patch(`/users/${userId}`, userUpdate);
@@ -35,9 +21,6 @@ export const updateUser = async (userId: string, userUpdate: UserUpdate): Promis
   return response.data;
 };
 
-/**
- * Upload profile picture for a user
- */
 export const uploadProfilePicture = async (userId: string, file: File): Promise<User> => {
   const formData = new FormData();
   formData.append("image", file);

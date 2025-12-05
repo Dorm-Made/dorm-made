@@ -39,7 +39,6 @@ export function useEditEvent(onSuccess?: () => void): UseEditEventReturn {
 
       closeDialog();
 
-      // Call the onSuccess callback if provided
       if (onSuccess) {
         onSuccess();
       }

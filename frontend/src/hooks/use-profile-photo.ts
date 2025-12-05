@@ -2,6 +2,8 @@ import { useState, useRef, useCallback } from "react";
 import { uploadProfilePicture, getAuthToken } from "@/services";
 import { User } from "@/types";
 import { useToast } from "@/hooks/use-toast";
+import { isAxiosError } from "axios";
+import { getErrorMessage } from "@/utils";
 
 interface UseProfilePhotoReturn {
   uploadingPhoto: boolean;
@@ -45,28 +47,26 @@ export function useProfilePhoto(onPhotoUploaded?: (user: User) => void): UseProf
           duration: 1500,
         });
 
-        // Reset file input
         if (fileInputRef.current) {
           fileInputRef.current.value = "";
         }
 
-        // Callback to update parent component state
         if (onPhotoUploaded) {
           onPhotoUploaded(updatedUser);
         }
-      } catch (error: unknown) {
-        console.error("Error uploading photo:", error);
-        const errorMessage =
-          error instanceof Error && "response" in error
-            ? (error as any).response?.data?.detail || "Não foi possível fazer upload da foto"
-            : "Não foi possível fazer upload da foto";
+      } catch (error) {
+        console.error("Error fetching meals:", error);
 
-        toast({
-          title: "Erro",
-          description: errorMessage,
-          variant: "destructive",
-          duration: 1500,
-        });
+        if (isAxiosError(error)) {
+          if (error.response?.status !== 401) {
+            toast({
+              title: "Error",
+              description: getErrorMessage(error, "Failed to change profile photo"),
+              variant: "destructive",
+              duration: 3000,
+            });
+          }
+        }
       } finally {
         setUploadingPhoto(false);
       }
