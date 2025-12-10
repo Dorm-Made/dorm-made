@@ -22,6 +22,10 @@ export default function Explore() {
     joinEvent: handleJoinEvent,
   } = useEvents();
 
+  const isEventJoinedByUser = (eventId: string) => {
+    return joinedEvents.some((joinedEvent) => joinedEvent.id === eventId);
+  };
+
   useEffect(() => {
     const userStr = localStorage.getItem("currentUser");
     if (userStr) {
@@ -134,6 +138,7 @@ export default function Explore() {
                     activeTab={activeTab}
                     onJoinEvent={handleJoinEvent}
                     onEventUpdated={refreshAllData}
+                    isJoinedByUser={isEventJoinedByUser(event.id)}
                   />
                 ))
               )}
@@ -157,6 +162,7 @@ export default function Explore() {
                     activeTab={activeTab}
                     onJoinEvent={handleJoinEvent}
                     onEventUpdated={refreshAllData}
+                    isJoinedByUser={isEventJoinedByUser(event.id)}
                   />
                 ))
               )}
@@ -178,6 +184,7 @@ export default function Explore() {
                     activeTab={activeTab}
                     onJoinEvent={handleJoinEvent}
                     onEventUpdated={refreshAllData}
+                    isJoinedByUser={true}
                   />
                 ))
               )}

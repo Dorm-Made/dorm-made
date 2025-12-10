@@ -27,6 +27,7 @@ class EventParticipantModel(Base):
         default='confirmed',
         server_default='confirmed'
     )
+    refunded_at = Column(DateTime(timezone=True), nullable=True)
 
     __table_args__ = (
         CheckConstraint(

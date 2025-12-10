@@ -8,9 +8,10 @@ import { MealDialog } from "../meals/MealDialog";
 import { EditEventDialog } from "./EditEventDialog";
 import { DeleteEventDialog } from "./DeleteEventDialog";
 import { JoinEventDialog } from "./JoinEventDialog";
+import { RefundEventDialog } from "./RefundEventDialog";
 import { useNavigate } from "react-router-dom";
 import { useEditEvent } from "@/hooks/use-edit-event";
-import { deleteEvent } from "@/services";
+import { deleteEvent, refundEvent } from "@/services";
 import { useToast } from "@/hooks/use-toast";
 import { getErrorMessage } from "@/utils/error";
 import { useState } from "react";
@@ -21,6 +22,7 @@ interface EventCardProps {
   onJoinEvent?: (eventId: string) => void;
   onEventUpdated?: () => void;
   showActions?: boolean;
+  isJoinedByUser?: boolean;
 }
 
 export function EventCard({
@@ -29,6 +31,7 @@ export function EventCard({
   onJoinEvent,
   onEventUpdated,
   showActions = true,
+  isJoinedByUser = false,
 }: EventCardProps) {
   const { isOpen, meal, loading, error, openDialog, closeDialog } = useMealDialog();
   const navigate = useNavigate();
@@ -36,6 +39,8 @@ export function EventCard({
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isJoinDialogOpen, setIsJoinDialogOpen] = useState(false);
+  const [isRefundDialogOpen, setIsRefundDialogOpen] = useState(false);
+  const [isRefunding, setIsRefunding] = useState(false);
   const {
     isOpen: isEditDialogOpen,
     loading: isUpdating,
@@ -110,6 +115,40 @@ export function EventCard({
     setIsJoinDialogOpen(false);
     if (onEventUpdated) {
       onEventUpdated();
+    }
+  };
+
+  const handleRefundClick = () => {
+    setIsRefundDialogOpen(true);
+  };
+
+  const handleConfirmRefund = async () => {
+    try {
+      setIsRefunding(true);
+      const result = await refundEvent(event.id);
+
+      toast({
+        title: "Refund Successful!",
+        description: result.message,
+        className: "bg-green-500 text-white border-green-600",
+        duration: 3000,
+      });
+
+      setIsRefundDialogOpen(false);
+
+      if (onEventUpdated) {
+        onEventUpdated();
+      }
+    } catch (err) {
+      toast({
+        title: "Refund Failed",
+        description: getErrorMessage(err, "Failed to process refund"),
+        variant: "destructive",
+        duration: 4000,
+      });
+      console.error("Error processing refund:", err);
+    } finally {
+      setIsRefunding(false);
     }
   };
 
@@ -200,14 +239,26 @@ export function EventCard({
             <Users className="h-4 w-4 mr-2" />
             {event.currentParticipants}/{event.maxParticipants} participants
           </div>
-          {activeTab === "all" && !isHost && (
-            <Button
-              className="mx-4 mt-8"
-              onClick={handleJoinEventClick}
-              disabled={event.currentParticipants >= event.maxParticipants}
-            >
-              {event.currentParticipants >= event.maxParticipants ? "Event Full" : "Join Event"}
-            </Button>
+          {!isHost && (
+            <>
+              {isJoinedByUser ? (
+                <Button
+                  className="mx-4 mt-8"
+                  variant="destructive"
+                  onClick={handleRefundClick}
+                >
+                  Cancel Participation
+                </Button>
+              ) : (
+                <Button
+                  className="mx-4 mt-8"
+                  onClick={handleJoinEventClick}
+                  disabled={event.currentParticipants >= event.maxParticipants}
+                >
+                  {event.currentParticipants >= event.maxParticipants ? "Event Full" : "Join Event"}
+                </Button>
+              )}
+            </>
           )}
         </CardContent>
       </Card>
@@ -234,12 +285,21 @@ export function EventCard({
         event={event}
         loading={isDeleting}
         onConfirmDelete={handleConfirmDelete}
+        hasParticipants={event.currentParticipants > 0}
       />
 
       <JoinEventDialog
         isOpen={isJoinDialogOpen}
         onClose={handleCloseJoinDialog}
         event={event}
+      />
+
+      <RefundEventDialog
+        isOpen={isRefundDialogOpen}
+        onClose={() => setIsRefundDialogOpen(false)}
+        event={event}
+        loading={isRefunding}
+        onConfirmRefund={handleConfirmRefund}
       />
     </>
   );

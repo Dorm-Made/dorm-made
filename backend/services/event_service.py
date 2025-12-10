@@ -1,14 +1,16 @@
 from fastapi import HTTPException, UploadFile
 from typing import List, Optional, Dict, Any, Tuple
 from sqlalchemy.orm import Session
-from datetime import datetime
+from datetime import datetime, timezone
 import uuid
+import stripe
 
 from models.event import EventModel
 from models.event_participant import EventParticipantModel
 from models.user import UserModel
 from schemas.event import Event, EventCreate, EventUpdate
 from schemas.event_participant import EventParticipant
+from schemas.refund import RefundResponse
 from utils.converters import event_model_to_schema, event_participant_models_to_schemas
 from utils.supabase import supabase
 from .user_service import get_user
@@ -376,3 +378,79 @@ async def soft_delete_event(event_id: str, user_id: str, db: Session) -> Dict[st
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=400, detail=f"Error deleting event: {str(e)}")
+
+
+async def refund_event_participation(
+    event_id: str, user_id: str, db: Session
+) -> RefundResponse:
+    """Process a refund for a user's event participation"""
+    try:
+        event_model = db.query(EventModel).filter(
+            EventModel.id == event_id,
+            EventModel.is_deleted == False
+        ).first()
+
+        if not event_model:
+            raise HTTPException(status_code=404, detail="Event not found")
+
+        participation = db.query(EventParticipantModel).filter(
+            EventParticipantModel.event_id == event_id,
+            EventParticipantModel.participant_id == user_id,
+            EventParticipantModel.status == 'confirmed'
+        ).first()
+
+        if not participation:
+            raise HTTPException(status_code=400, detail="Not registered for this event")
+
+        if not participation.payment_intent_id:
+            raise HTTPException(status_code=400, detail="Payment not found")
+
+        if participation.refunded_at is not None:
+            raise HTTPException(status_code=400, detail="Already refunded")
+
+        now = datetime.now(timezone.utc)
+
+        hours_since_reservation = (now - participation.joined_at).total_seconds() / 3600
+        within_reservation_window = hours_since_reservation <= 12
+
+        if not within_reservation_window:
+            raise HTTPException(status_code=400, detail="Refund window has expired")
+
+        hours_until_event = (event_model.event_date - now).total_seconds() / 3600
+        before_event_window = hours_until_event >= 24
+
+        if not before_event_window:
+            raise HTTPException(status_code=400, detail="Too close to event time")
+
+        refund_amount_cents = (event_model.price * 70) // 100
+
+        try:
+            refund = stripe.Refund.create(
+                payment_intent=participation.payment_intent_id,
+                amount=refund_amount_cents,
+                reverse_transfer=True
+            )
+        except stripe.error.InvalidRequestError:
+            raise HTTPException(status_code=400, detail="Refund not available")
+        except stripe.error.StripeError:
+            raise HTTPException(status_code=500, detail="Refund failed")
+
+        try:
+            participation.status = 'cancelled'
+            participation.refunded_at = datetime.now(timezone.utc)
+            event_model.current_participants -= 1
+            db.commit()
+        except Exception:
+            db.rollback()
+            raise HTTPException(status_code=500, detail="Refund failed")
+
+        return RefundResponse(
+            refund_amount_cents=refund_amount_cents,
+            message="Refund processed successfully"
+        )
+
+    except HTTPException:
+        raise
+    except Exception:
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Refund failed")

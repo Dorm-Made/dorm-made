@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from schemas.event import Event, EventCreate, EventUpdate
 from schemas.event_participant import EventParticipant
 from schemas.checkout import CreateCheckoutSessionResponse
+from schemas.refund import RefundResponse
 from utils.auth import get_current_user_id
 from utils.database import get_db
 from services import event_service
@@ -145,3 +146,13 @@ async def delete_event_endpoint(
 ):
     """Soft delete an event (only the host can delete)"""
     return await event_service.soft_delete_event(event_id, current_user_id, db)
+
+
+@router.post("/{event_id}/refund", response_model=RefundResponse)
+async def refund_event_endpoint(
+    event_id: str,
+    current_user_id: Annotated[str, Depends(get_current_user_id)],
+    db: Session = Depends(get_db),
+):
+    """Process a refund for the authenticated user's event participation"""
+    return await event_service.refund_event_participation(event_id, current_user_id, db)

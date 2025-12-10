@@ -1,5 +1,5 @@
 import { httpClient } from "./http-client";
-import { Event, EventCreate, EventUpdate, JoinEventRequest } from "@/types";
+import { Event, EventCreate, EventUpdate, JoinEventRequest, RefundResponse } from "@/types";
 
 // Use FormData (for image uploads)
 export const createEvent = async (eventData: EventCreate | FormData): Promise<Event> => {
@@ -50,5 +50,10 @@ export const deleteEvent = async (
   eventId: string,
 ): Promise<{ message: string; event_id: string }> => {
   const response = await httpClient.delete(`/events/${eventId}`);
+  return response.data;
+};
+
+export const refundEvent = async (eventId: string): Promise<RefundResponse> => {
+  const response = await httpClient.post(`/events/${eventId}/refund`);
   return response.data;
 };
