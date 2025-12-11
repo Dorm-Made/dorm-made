@@ -18,3 +18,7 @@ export interface SessionStatusResponse {
   status: string;
   paymentStatus: string;
 }
+
+export interface StripeLoginLinkResponse {
+  account_url: string;
+}

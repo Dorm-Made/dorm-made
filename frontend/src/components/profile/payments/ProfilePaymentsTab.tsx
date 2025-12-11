@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { useStripeConnect } from "@/hooks/use-stripe-connect";
@@ -6,13 +6,36 @@ import { CreditCard, CheckCircle2, XCircle, AlertCircle, Loader2, RefreshCw } fr
 import { StatusHeader } from "./StatusHeader";
 import { AccountDetailRow } from "./AccountDetailRow";
 import { StatusIndicator } from "./StatusIndicator";
+import { getStripeLoginLink } from "@/services/user.service";
+import { useToast } from "@/hooks/use-toast";
+import { getErrorMessage } from "@/utils/error";
 
 export function ProfilePaymentsTab() {
   const { stripeStatus, loading, connecting, checkStatus, startOnboarding } = useStripeConnect();
+  const { toast } = useToast();
+  const [loadingLoginLink, setLoadingLoginLink] = useState(false);
 
   useEffect(() => {
     checkStatus();
   }, [checkStatus]);
+
+  const handleViewDetails = async () => {
+    try {
+      setLoadingLoginLink(true);
+      const response = await getStripeLoginLink();
+      window.location.href = response.account_url;
+    } catch (err) {
+      toast({
+        title: "Error",
+        description: getErrorMessage(err, "Failed to generate Stripe login link"),
+        variant: "destructive",
+        duration: 3000,
+      });
+      console.error("Error generating Stripe login link:", err);
+    } finally {
+      setLoadingLoginLink(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -209,6 +232,18 @@ export function ProfilePaymentsTab() {
           <AccountDetailRow
             label="Onboarding Complete"
             value={<StatusIndicator enabled={true} />}
+          />
+          <AccountDetailRow
+            label="Stripe Dashboard"
+            value={
+              <button
+                onClick={handleViewDetails}
+                disabled={loadingLoginLink}
+                className="text-primary hover:underline text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {loadingLoginLink ? "Loading..." : "View details"}
+              </button>
+            }
           />
         </div>
       </div>

@@ -14,6 +14,10 @@ class StripeStatusResponse(BaseModel):
     account_id: Optional[str] = None
 
 
+class StripeLoginLinkResponse(BaseModel):
+    account_url: str
+
+
 class WebhookResponse(BaseModel):
     received: bool
     message: str

@@ -1,5 +1,6 @@
 import { httpClient, getAuthToken } from "./http-client";
 import { User, UserCreate, UserUpdate } from "@/types";
+import { StripeLoginLinkResponse } from "@/types/stripe.types";
 
 export const createUser = async (userData: UserCreate): Promise<User> => {
   const response = await httpClient.post("/users/", userData);
@@ -40,6 +41,10 @@ export const uploadProfilePicture = async (userId: string, file: File): Promise<
   });
 
   const response = await httpClient.post(url, formData);
-  console.log("[DEBUG] Upload successful:", response.data);
+  return response.data;
+};
+
+export const getStripeLoginLink = async (): Promise<StripeLoginLinkResponse> => {
+  const response = await httpClient.get("/users/stripe/login");
   return response.data;
 };

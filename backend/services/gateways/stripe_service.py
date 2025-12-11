@@ -153,3 +153,8 @@ async def retrieve_checkout_session(session_id: str) -> Dict[str, Any]:
 
 async def retrieve_connected_account(stripe_account_id: str) -> Dict[str, Any]:
     return await get_stripe_account_status(stripe_account_id)
+
+
+async def generate_login_link(stripe_account_id: str) -> str:
+    login_link = await stripe.Account.create_login_link_async(stripe_account_id)
+    return login_link.url

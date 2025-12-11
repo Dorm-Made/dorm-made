@@ -3,7 +3,11 @@ from typing import List, Annotated
 from sqlalchemy.orm import Session
 
 from schemas.user import User, UserCreate, UserLogin, UserUpdate, LoginResponse
-from schemas.stripe import StripeConnectResponse, StripeStatusResponse
+from schemas.stripe import (
+    StripeConnectResponse,
+    StripeLoginLinkResponse,
+    StripeStatusResponse,
+)
 from utils.auth import get_current_user_id
 from utils.database import get_db
 from utils.config import config
@@ -69,6 +73,25 @@ async def get_stripe_status(
         onboarding_complete=status["onboarding_complete"],
         account_id=user.stripe_account_id,
     )
+
+
+@router.get("/stripe/login", response_model=StripeLoginLinkResponse)
+async def get_stripe_login_link(
+    current_user_id: Annotated[str, Depends(get_current_user_id)],
+    db: Session = Depends(get_db),
+):
+    user = await user_service.get_user(current_user_id, db)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    if not user.stripe_account_id:
+        raise HTTPException(
+            status_code=400, detail="Stripe Connect Account not configured"
+        )
+
+    url = await stripe_service.generate_login_link(user.stripe_account_id)
+
+    return StripeLoginLinkResponse(account_url=url)
 
 
 @router.post("/", response_model=User)
