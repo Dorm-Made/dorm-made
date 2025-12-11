@@ -43,7 +43,7 @@ def is_user_participating(event_id: str, user_id: str, db: Session) -> bool:
             .filter(
                 EventParticipantModel.event_id == event_id,
                 EventParticipantModel.participant_id == user_id,
-                EventParticipantModel.status == 'confirmed',
+                EventParticipantModel.status == "confirmed",
             )
             .first()
         )
@@ -148,60 +148,55 @@ async def validate_checkout_requirements(
     event_id: str, foodie_id: str, db: Session
 ) -> Tuple[EventModel, UserModel]:
     """Validate all requirements for creating a checkout session"""
-    event = db.query(EventModel).filter(
-        EventModel.id == event_id,
-        EventModel.is_deleted == False
-    ).first()
+    event = (
+        db.query(EventModel)
+        .filter(EventModel.id == event_id, EventModel.is_deleted == False)
+        .first()
+    )
 
     if not event:
         raise HTTPException(status_code=404, detail="Event not found")
 
     if event.host_user_id == foodie_id:
-        raise HTTPException(
-            status_code=400,
-            detail="Host cannot join their own event"
-        )
+        raise HTTPException(status_code=400, detail="Host cannot join their own event")
 
-    existing_participation = db.query(EventParticipantModel).filter(
-        EventParticipantModel.event_id == event_id,
-        EventParticipantModel.participant_id == foodie_id,
-        EventParticipantModel.status == 'confirmed'
-    ).first()
+    existing_participation = (
+        db.query(EventParticipantModel)
+        .filter(
+            EventParticipantModel.event_id == event_id,
+            EventParticipantModel.participant_id == foodie_id,
+            EventParticipantModel.status == "confirmed",
+        )
+        .first()
+    )
 
     if existing_participation:
-        raise HTTPException(
-            status_code=400,
-            detail="Already joined this event"
-        )
+        raise HTTPException(status_code=400, detail="Already joined this event")
 
-    confirmed_count = db.query(EventParticipantModel).filter(
-        EventParticipantModel.event_id == event_id,
-        EventParticipantModel.status == 'confirmed'
-    ).count()
+    confirmed_count = (
+        db.query(EventParticipantModel)
+        .filter(
+            EventParticipantModel.event_id == event_id,
+            EventParticipantModel.status == "confirmed",
+        )
+        .count()
+    )
 
     if confirmed_count >= event.max_participants:
         raise HTTPException(status_code=400, detail="Event is full")
 
-    chef = db.query(UserModel).filter(
-        UserModel.id == event.host_user_id
-    ).first()
+    chef = db.query(UserModel).filter(UserModel.id == event.host_user_id).first()
 
     if not chef:
         raise HTTPException(status_code=404, detail="Chef not found")
 
     if not chef.stripe_account_id:
-        raise HTTPException(
-            status_code=400,
-            detail="Chef payment not configured"
-        )
+        raise HTTPException(status_code=400, detail="Chef payment not configured")
 
     account_status = await retrieve_connected_account(chef.stripe_account_id)
 
     if not account_status.get("charges_enabled", False):
-        raise HTTPException(
-            status_code=400,
-            detail="Chef payment account not ready"
-        )
+        raise HTTPException(status_code=400, detail="Chef payment account not ready")
 
     return event, chef
 
@@ -269,7 +264,10 @@ async def get_user_joined_events(user_id: str, db: Session) -> List[Event]:
         # First get all event IDs that the user has joined
         participant_models = (
             db.query(EventParticipantModel)
-            .filter(EventParticipantModel.participant_id == user_id)
+            .filter(
+                EventParticipantModel.participant_id == user_id,
+                EventParticipantModel.refunded_at == None,
+            )
             .all()
         )
 
@@ -385,19 +383,24 @@ async def refund_event_participation(
 ) -> RefundResponse:
     """Process a refund for a user's event participation"""
     try:
-        event_model = db.query(EventModel).filter(
-            EventModel.id == event_id,
-            EventModel.is_deleted == False
-        ).first()
+        event_model = (
+            db.query(EventModel)
+            .filter(EventModel.id == event_id, EventModel.is_deleted == False)
+            .first()
+        )
 
         if not event_model:
             raise HTTPException(status_code=404, detail="Event not found")
 
-        participation = db.query(EventParticipantModel).filter(
-            EventParticipantModel.event_id == event_id,
-            EventParticipantModel.participant_id == user_id,
-            EventParticipantModel.status == 'confirmed'
-        ).first()
+        participation = (
+            db.query(EventParticipantModel)
+            .filter(
+                EventParticipantModel.event_id == event_id,
+                EventParticipantModel.participant_id == user_id,
+                EventParticipantModel.status == "confirmed",
+            )
+            .first()
+        )
 
         if not participation:
             raise HTTPException(status_code=400, detail="Not registered for this event")
@@ -428,7 +431,7 @@ async def refund_event_participation(
             refund = stripe.Refund.create(
                 payment_intent=participation.payment_intent_id,
                 amount=refund_amount_cents,
-                reverse_transfer=True
+                reverse_transfer=True,
             )
         except stripe.error.InvalidRequestError:
             raise HTTPException(status_code=400, detail="Refund not available")
@@ -436,7 +439,7 @@ async def refund_event_participation(
             raise HTTPException(status_code=500, detail="Refund failed")
 
         try:
-            participation.status = 'cancelled'
+            participation.status = "cancelled"
             participation.refunded_at = datetime.now(timezone.utc)
             event_model.current_participants -= 1
             db.commit()
@@ -446,7 +449,7 @@ async def refund_event_participation(
 
         return RefundResponse(
             refund_amount_cents=refund_amount_cents,
-            message="Refund processed successfully"
+            message="Refund processed successfully",
         )
 
     except HTTPException:
