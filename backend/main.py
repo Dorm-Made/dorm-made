@@ -2,7 +2,8 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 
-from routers import users, events, meals
+from routers import users, events, meals, checkout
+from routers.gateways.stripe import webhook
 
 load_dotenv()
 
@@ -14,10 +15,18 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],  # Allows all origins
     allow_credentials=False,  # Set to False when using wildcard origins
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],  # Explicit methods
+    allow_methods=[
+        "GET",
+        "POST",
+        "PUT",
+        "DELETE",
+        "OPTIONS",
+        "PATCH",
+    ],  # Explicit methods
     allow_headers=["*"],  # Allows all headers
     expose_headers=["*"],  # Expose all headers
 )
+
 
 # Debug middleware to log all requests
 @app.middleware("http")
@@ -33,15 +42,23 @@ async def log_requests(request: Request, call_next):
     print(f"[RESPONSE] {response.status_code}")
     return response
 
+
 # Include routers
 app.include_router(users.router)
 app.include_router(events.router)
 app.include_router(meals.router)
+app.include_router(checkout.router)
+app.include_router(webhook.router)
+
 
 @app.get("/")
 async def root():
     return {"message": "Welcome to Dorm Made - Culinary Social Network API"}
 
+
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+
+    uvicorn.run(
+        "main:app", host="0.0.0.0", port=8000, reload=True, reload_dirs=["./"]
+    )

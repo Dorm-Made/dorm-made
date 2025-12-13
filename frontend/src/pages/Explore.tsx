@@ -1,13 +1,18 @@
 import { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/home/Footer";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useEvents } from "@/hooks/use-events";
 import { EventCard } from "@/components/events/EventCard";
+import { useToast } from "@/hooks/use-toast";
+import { getSessionStatus } from "@/services";
 
 export default function Explore() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState("all");
   const [currentUser, setCurrentUser] = useState<any>(null);
+  const { toast } = useToast();
   const {
     allEvents,
     myEvents,
@@ -16,6 +21,10 @@ export default function Explore() {
     refreshAllData,
     joinEvent: handleJoinEvent,
   } = useEvents();
+
+  const isEventJoinedByUser = (eventId: string) => {
+    return joinedEvents.some((joinedEvent) => joinedEvent.id === eventId);
+  };
 
   useEffect(() => {
     const userStr = localStorage.getItem("currentUser");
@@ -32,6 +41,47 @@ export default function Explore() {
   useEffect(() => {
     refreshAllData();
   }, [refreshAllData]);
+
+  useEffect(() => {
+    const sessionId = searchParams.get("session_id");
+    if (sessionId) {
+      const checkPaymentStatus = async () => {
+        try {
+          const status = await getSessionStatus(sessionId);
+
+          if (status.status === "complete" && status.paymentStatus === "paid") {
+            toast({
+              title: "Payment successful!",
+              className: "bg-green-500 text-white border-green-600",
+              description: "You're registered for the event.",
+              duration: 5000,
+            });
+            setActiveTab("joined");
+            await refreshAllData();
+          } else {
+            toast({
+              title: "Payment incomplete",
+              description: "Please try again or contact support.",
+              variant: "destructive",
+              duration: 5000,
+            });
+          }
+        } catch (error) {
+          console.error("Error checking payment status:", error);
+          toast({
+            title: "Error",
+            description: "Failed to verify payment status.",
+            variant: "destructive",
+            duration: 5000,
+          });
+        } finally {
+          setSearchParams({});
+        }
+      };
+
+      checkPaymentStatus();
+    }
+  }, [searchParams, setSearchParams, toast, refreshAllData]);
 
   if (loading) {
     return (
@@ -88,6 +138,7 @@ export default function Explore() {
                     activeTab={activeTab}
                     onJoinEvent={handleJoinEvent}
                     onEventUpdated={refreshAllData}
+                    isJoinedByUser={isEventJoinedByUser(event.id)}
                   />
                 ))
               )}
@@ -111,6 +162,7 @@ export default function Explore() {
                     activeTab={activeTab}
                     onJoinEvent={handleJoinEvent}
                     onEventUpdated={refreshAllData}
+                    isJoinedByUser={isEventJoinedByUser(event.id)}
                   />
                 ))
               )}
@@ -132,6 +184,7 @@ export default function Explore() {
                     activeTab={activeTab}
                     onJoinEvent={handleJoinEvent}
                     onEventUpdated={refreshAllData}
+                    isJoinedByUser={true}
                   />
                 ))
               )}

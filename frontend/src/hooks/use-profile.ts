@@ -21,9 +21,6 @@ interface UseProfileReturn {
   refreshUserEvents: () => Promise<void>;
 }
 
-/**
- * Custom hook for managing user profile data and operations
- */
 export function useProfile(userId?: string): UseProfileReturn {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -58,10 +55,8 @@ export function useProfile(userId?: string): UseProfileReturn {
         console.log("User data loaded:", userData);
         setUser(userData);
         setEditingUser({ ...userData });
-        // Load events after user is loaded
         await loadUserEvents(userData.id);
       } catch (error) {
-        // Fallback to localStorage if backend fails
         const currentUserStr = localStorage.getItem("currentUser");
         if (currentUserStr) {
           try {
@@ -107,7 +102,6 @@ export function useProfile(userId?: string): UseProfileReturn {
         setEditingUser({ ...updatedUser });
         setIsEditing(false);
 
-        // Update localStorage
         localStorage.setItem("currentUser", JSON.stringify(updatedUser));
 
         toast({
@@ -154,12 +148,10 @@ export function useProfile(userId?: string): UseProfileReturn {
     return false;
   }, [user]);
 
-  // Load user on mount or when userId changes
   useEffect(() => {
     if (userId) {
       loadUser(userId);
     } else {
-      // If no userId, try to use localStorage
       const currentUserStr = localStorage.getItem("currentUser");
       if (currentUserStr) {
         try {

@@ -1,6 +1,5 @@
 import axios, { AxiosInstance } from "axios";
 
-// API Configuration
 export const API_CONFIG = {
   BASE_URL: import.meta.env.VITE_API_URL || "http://localhost:8000",
   HEADERS: {
@@ -8,10 +7,8 @@ export const API_CONFIG = {
   },
 } as const;
 
-// Normalize base URL (remove trailing slash if exists)
 const normalizedBaseUrl = API_CONFIG.BASE_URL.replace(/\/$/, "");
 
-// Token management utilities
 export const setAuthToken = (token: string) => {
   localStorage.setItem("authToken", token);
   httpClient.defaults.headers.common["Authorization"] = `Bearer ${token}`;
@@ -26,19 +23,16 @@ export const removeAuthToken = () => {
   delete httpClient.defaults.headers.common["Authorization"];
 };
 
-// Create axios instance
 export const httpClient: AxiosInstance = axios.create({
   baseURL: normalizedBaseUrl,
   headers: API_CONFIG.HEADERS,
 });
 
-// Initialize token if it exists
 const token = getAuthToken();
 if (token) {
   httpClient.defaults.headers.common["Authorization"] = `Bearer ${token}`;
 }
 
-// Request interceptor - ensure token is always included
 httpClient.interceptors.request.use(
   (config) => {
     const token = getAuthToken();
@@ -46,7 +40,6 @@ httpClient.interceptors.request.use(
       config.headers.Authorization = `Bearer ${token}`;
     }
 
-    // Don't override Content-Type if FormData (let browser set it automatically with boundary)
     if (config.data instanceof FormData) {
       delete config.headers["Content-Type"];
     }
@@ -58,7 +51,6 @@ httpClient.interceptors.request.use(
   },
 );
 
-// Response interceptor - handle auth errors globally
 httpClient.interceptors.response.use(
   (response) => {
     return response;
@@ -71,7 +63,6 @@ httpClient.interceptors.response.use(
       console.log("401 Error - clearing token and redirecting to login");
       removeAuthToken();
 
-      // Don't redirect if on certain pages (may be validation errors)
       if (
         window.location.pathname !== "/login" &&
         window.location.pathname !== "/signup" &&

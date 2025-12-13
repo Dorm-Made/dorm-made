@@ -2,9 +2,6 @@ import { useState, useCallback } from "react";
 import { Meal } from "@/types";
 import { getMeal } from "@/services";
 
-/**
- * Hook for managing meal dialog state and fetching meal details
- */
 export function useMealDialog() {
   const [isOpen, setIsOpen] = useState(false);
   const [meal, setMeal] = useState<Meal | null>(null);

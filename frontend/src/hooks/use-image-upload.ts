@@ -14,9 +14,6 @@ interface UseImageUploadReturn {
   resetImage: () => void;
 }
 
-/**
- * Custom hook for handling image uploads with validation and preview
- */
 export function useImageUpload(options: UseImageUploadOptions = {}): UseImageUploadReturn {
   const { maxSizeMB = 5, allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp"] } =
     options;
@@ -30,7 +27,6 @@ export function useImageUpload(options: UseImageUploadOptions = {}): UseImageUpl
       const file = e.target.files?.[0];
       if (!file) return;
 
-      // Validate file type
       if (!allowedTypes.includes(file.type)) {
         toast({
           title: "Invalid file type",
@@ -41,7 +37,6 @@ export function useImageUpload(options: UseImageUploadOptions = {}): UseImageUpl
         return;
       }
 
-      // Validate file size
       const maxSizeBytes = maxSizeMB * 1024 * 1024;
       if (file.size > maxSizeBytes) {
         toast({
@@ -55,7 +50,6 @@ export function useImageUpload(options: UseImageUploadOptions = {}): UseImageUpl
 
       setSelectedImage(file);
 
-      // Create preview URL
       const reader = new FileReader();
       reader.onloadend = () => {
         setImagePreview(reader.result as string);

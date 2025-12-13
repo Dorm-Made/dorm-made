@@ -39,7 +39,6 @@ export function useEditMeal(onSuccess?: () => void): UseEditMealReturn {
 
       closeDialog();
 
-      // Call the onSuccess callback if provided
       if (onSuccess) {
         onSuccess();
       }

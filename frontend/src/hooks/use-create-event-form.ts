@@ -10,7 +10,6 @@ export interface EventFormData {
 }
 
 export function useCreateEventForm() {
-  // Form state
   const [formData, setFormData] = useState<EventFormData>({
     title: "",
     description: "",

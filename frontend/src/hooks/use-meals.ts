@@ -5,10 +5,6 @@ import { useToast } from "@/hooks/use-toast";
 import { getErrorMessage } from "@/utils/error";
 import { isAxiosError } from "axios";
 
-/**
- * Custom hook for managing user's meals/recipes
- * Fetches meals from the API
- */
 export function useMeals() {
   const [meals, setMeals] = useState<Meal[]>([]);
   const [loading, setLoading] = useState(true);
@@ -39,17 +35,14 @@ export function useMeals() {
     }
   }, [toast]);
 
-  // Load meals on mount
   useEffect(() => {
     fetchMeals();
   }, [fetchMeals]);
 
-  // Select a meal
   const selectMeal = useCallback((meal: Meal) => {
     setSelectedMeal(meal);
   }, []);
 
-  // Clear selected meal
   const clearSelection = useCallback(() => {
     setSelectedMeal(null);
   }, []);

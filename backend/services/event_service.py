@@ -1,29 +1,31 @@
 from fastapi import HTTPException, UploadFile
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Tuple
 from sqlalchemy.orm import Session
-from datetime import datetime
+from datetime import datetime, timezone
 import uuid
+import stripe
 
 from models.event import EventModel
 from models.event_participant import EventParticipantModel
+from models.user import UserModel
 from schemas.event import Event, EventCreate, EventUpdate
 from schemas.event_participant import EventParticipant
-from utils.converters import (
-    event_model_to_schema,
-    event_participant_models_to_schemas
-)
+from schemas.refund import RefundResponse
+from utils.converters import event_model_to_schema, event_participant_models_to_schemas
 from utils.supabase import supabase
 from .user_service import get_user
 from .meal_service import get_meal_name
+from .gateways.stripe_service import retrieve_connected_account
 
 
 def get_event(event_id: str, db: Session) -> Optional[Event]:
     """Get event by ID from database"""
     try:
-        event_model = db.query(EventModel).filter(
-            EventModel.id == event_id,
-            EventModel.is_deleted == False
-        ).first()
+        event_model = (
+            db.query(EventModel)
+            .filter(EventModel.id == event_id, EventModel.is_deleted == False)
+            .first()
+        )
         if event_model:
             meal_name = get_meal_name(event_model.meal_id, db)
             return event_model_to_schema(event_model, meal_name)
@@ -36,10 +38,15 @@ def get_event(event_id: str, db: Session) -> Optional[Event]:
 def is_user_participating(event_id: str, user_id: str, db: Session) -> bool:
     """Check if user is already participating in an event"""
     try:
-        participant = db.query(EventParticipantModel).filter(
-            EventParticipantModel.event_id == event_id,
-            EventParticipantModel.participant_id == user_id
-        ).first()
+        participant = (
+            db.query(EventParticipantModel)
+            .filter(
+                EventParticipantModel.event_id == event_id,
+                EventParticipantModel.participant_id == user_id,
+                EventParticipantModel.status == "confirmed",
+            )
+            .first()
+        )
         return participant is not None
     except Exception as e:
         print(f"Error checking participation: {e}")
@@ -52,7 +59,10 @@ async def upload_event_image(image: UploadFile) -> str:
         # Validate file type
         allowed_types = ["image/jpeg", "image/jpg", "image/png", "image/webp"]
         if image.content_type not in allowed_types:
-            raise HTTPException(status_code=400, detail="Invalid file type. Only JPEG, PNG, and WebP images are allowed.")
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid file type. Only JPEG, PNG, and WebP images are allowed.",
+            )
 
         # Validate file size (5MB max)
         contents = await image.read()
@@ -60,18 +70,20 @@ async def upload_event_image(image: UploadFile) -> str:
             raise HTTPException(status_code=400, detail="File size exceeds 5MB limit.")
 
         # Generate unique filename
-        file_extension = image.filename.split('.')[-1] if image.filename else 'jpg'
-        unique_filename = f"{uuid.uuid4()}_{int(datetime.now().timestamp())}.{file_extension}"
+        file_extension = image.filename.split(".")[-1] if image.filename else "jpg"
+        unique_filename = (
+            f"{uuid.uuid4()}_{int(datetime.now().timestamp())}.{file_extension}"
+        )
 
         # Upload to Supabase Storage
         result = supabase.storage.from_("event-images").upload(
-            unique_filename,
-            contents,
-            {"content-type": image.content_type}
+            unique_filename, contents, {"content-type": image.content_type}
         )
 
         # Get public URL
-        public_url = supabase.storage.from_("event-images").get_public_url(unique_filename)
+        public_url = supabase.storage.from_("event-images").get_public_url(
+            unique_filename
+        )
 
         return public_url
     except HTTPException:
@@ -80,7 +92,12 @@ async def upload_event_image(image: UploadFile) -> str:
         raise HTTPException(status_code=400, detail=f"Error uploading image: {str(e)}")
 
 
-async def create_event(event: EventCreate, host_user_id: str, db: Session, image: Optional[UploadFile] = None) -> Event:
+async def create_event(
+    event: EventCreate,
+    host_user_id: str,
+    db: Session,
+    image: Optional[UploadFile] = None,
+) -> Event:
     """Create a new culinary event with optional image upload"""
     # Verify host user exists
     host = await get_user(host_user_id, db)
@@ -96,7 +113,7 @@ async def create_event(event: EventCreate, host_user_id: str, db: Session, image
         # Convert string event_date to datetime if needed
         event_date = event.event_date
         if isinstance(event_date, str):
-            event_date = datetime.fromisoformat(event.event_date.replace('Z', '+00:00'))
+            event_date = datetime.fromisoformat(event.event_date.replace("Z", "+00:00"))
 
         # Create new event model
         event_model = EventModel(
@@ -127,57 +144,61 @@ async def create_event(event: EventCreate, host_user_id: str, db: Session, image
         raise HTTPException(status_code=400, detail=f"Error creating event: {str(e)}")
 
 
-async def join_event(join_request: Dict[str, Any], db: Session) -> Dict[str, str]:
-    """Join an existing event"""
-    user_id = join_request["user_id"] if isinstance(join_request, dict) else join_request.user_id
-    event_id = join_request["event_id"] if isinstance(join_request, dict) else join_request.event_id
+async def validate_checkout_requirements(
+    event_id: str, foodie_id: str, db: Session
+) -> Tuple[EventModel, UserModel]:
+    """Validate all requirements for creating a checkout session"""
+    event = (
+        db.query(EventModel)
+        .filter(EventModel.id == event_id, EventModel.is_deleted == False)
+        .first()
+    )
 
-    # Verify user exists
-    user = await get_user(user_id, db)
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-
-    # Verify event exists
-    event = get_event(event_id, db)
     if not event:
         raise HTTPException(status_code=404, detail="Event not found")
 
-    # Check if user is already the host
-    if event.host_user_id == str(user_id):
+    if event.host_user_id == foodie_id:
         raise HTTPException(status_code=400, detail="Host cannot join their own event")
 
-    # Check if user is already participating
-    if is_user_participating(event_id, user_id, db):
-        raise HTTPException(status_code=400, detail="User is already participating in this event")
+    existing_participation = (
+        db.query(EventParticipantModel)
+        .filter(
+            EventParticipantModel.event_id == event_id,
+            EventParticipantModel.participant_id == foodie_id,
+            EventParticipantModel.status == "confirmed",
+        )
+        .first()
+    )
 
-    # Check if event is full
-    if event.current_participants >= event.max_participants:
+    if existing_participation:
+        raise HTTPException(status_code=400, detail="Already joined this event")
+
+    confirmed_count = (
+        db.query(EventParticipantModel)
+        .filter(
+            EventParticipantModel.event_id == event_id,
+            EventParticipantModel.status == "confirmed",
+        )
+        .count()
+    )
+
+    if confirmed_count >= event.max_participants:
         raise HTTPException(status_code=400, detail="Event is full")
 
-    try:
-        # Add participant to events_participants table
-        participant_model = EventParticipantModel(
-            id=str(uuid.uuid4()),
-            event_id=event_id,
-            participant_id=user_id
-        )
+    chef = db.query(UserModel).filter(UserModel.id == event.host_user_id).first()
 
-        db.add(participant_model)
+    if not chef:
+        raise HTTPException(status_code=404, detail="Chef not found")
 
-        # Update event participants count
-        event_model = db.query(EventModel).filter(EventModel.id == event_id).first()
-        if event_model:
-            event_model.current_participants += 1
-            db.commit()
-            return {"message": "Successfully joined the event", "event_id": event_id}
-        else:
-            db.rollback()
-            raise HTTPException(status_code=400, detail="Failed to update participant count")
-    except HTTPException:
-        raise
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=400, detail=f"Error joining event: {str(e)}")
+    if not chef.stripe_account_id:
+        raise HTTPException(status_code=400, detail="Chef payment not configured")
+
+    account_status = await retrieve_connected_account(chef.stripe_account_id)
+
+    if not account_status.get("charges_enabled", False):
+        raise HTTPException(status_code=400, detail="Chef payment account not ready")
+
+    return event, chef
 
 
 async def list_events(db: Session) -> List[Event]:
@@ -205,21 +226,26 @@ async def get_event_details(event_id: str, db: Session) -> Event:
 async def get_event_participants(event_id: str, db: Session) -> List[EventParticipant]:
     """Get all participants for an event"""
     try:
-        participant_models = db.query(EventParticipantModel).filter(
-            EventParticipantModel.event_id == event_id
-        ).all()
+        participant_models = (
+            db.query(EventParticipantModel)
+            .filter(EventParticipantModel.event_id == event_id)
+            .all()
+        )
         return event_participant_models_to_schemas(participant_models)
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Error fetching participants: {str(e)}")
+        raise HTTPException(
+            status_code=400, detail=f"Error fetching participants: {str(e)}"
+        )
 
 
 async def get_user_events(user_id: str, db: Session) -> List[Event]:
     """Get all events created by a specific user (excluding deleted ones)"""
     try:
-        event_models = db.query(EventModel).filter(
-            EventModel.host_user_id == user_id,
-            EventModel.is_deleted == False
-        ).all()
+        event_models = (
+            db.query(EventModel)
+            .filter(EventModel.host_user_id == user_id, EventModel.is_deleted == False)
+            .all()
+        )
         # Convert each event with its meal name
         events = []
         for event_model in event_models:
@@ -227,16 +253,23 @@ async def get_user_events(user_id: str, db: Session) -> List[Event]:
             events.append(event_model_to_schema(event_model, meal_name))
         return events
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Error fetching user events: {str(e)}")
+        raise HTTPException(
+            status_code=400, detail=f"Error fetching user events: {str(e)}"
+        )
 
 
 async def get_user_joined_events(user_id: str, db: Session) -> List[Event]:
     """Get all events that a user has joined (excluding deleted ones)"""
     try:
         # First get all event IDs that the user has joined
-        participant_models = db.query(EventParticipantModel).filter(
-            EventParticipantModel.participant_id == user_id
-        ).all()
+        participant_models = (
+            db.query(EventParticipantModel)
+            .filter(
+                EventParticipantModel.participant_id == user_id,
+                EventParticipantModel.refunded_at == None,
+            )
+            .all()
+        )
 
         if not participant_models:
             return []
@@ -244,10 +277,11 @@ async def get_user_joined_events(user_id: str, db: Session) -> List[Event]:
         event_ids = [participant.event_id for participant in participant_models]
 
         # Then get the full event details for those events (excluding deleted ones)
-        event_models = db.query(EventModel).filter(
-            EventModel.id.in_(event_ids),
-            EventModel.is_deleted == False
-        ).all()
+        event_models = (
+            db.query(EventModel)
+            .filter(EventModel.id.in_(event_ids), EventModel.is_deleted == False)
+            .all()
+        )
         # Convert each event with its meal name
         events = []
         for event_model in event_models:
@@ -255,10 +289,14 @@ async def get_user_joined_events(user_id: str, db: Session) -> List[Event]:
             events.append(event_model_to_schema(event_model, meal_name))
         return events
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Error fetching joined events: {str(e)}")
+        raise HTTPException(
+            status_code=400, detail=f"Error fetching joined events: {str(e)}"
+        )
 
 
-async def update_event(event_id: str, event_update: EventUpdate, user_id: str, db: Session) -> Event:
+async def update_event(
+    event_id: str, event_update: EventUpdate, user_id: str, db: Session
+) -> Event:
     """Update an existing event (only the host can update)"""
     # Get the event
     event_model = db.query(EventModel).filter(EventModel.id == event_id).first()
@@ -267,7 +305,9 @@ async def update_event(event_id: str, event_update: EventUpdate, user_id: str, d
 
     # Verify that the user is the host
     if event_model.host_user_id != user_id:
-        raise HTTPException(status_code=403, detail="Only the event host can update the event")
+        raise HTTPException(
+            status_code=403, detail="Only the event host can update the event"
+        )
 
     try:
         # Update only the fields that are provided
@@ -282,7 +322,7 @@ async def update_event(event_id: str, event_update: EventUpdate, user_id: str, d
             if event_update.max_participants < event_model.current_participants:
                 raise HTTPException(
                     status_code=400,
-                    detail=f"Cannot reduce max participants to {event_update.max_participants} when there are already {event_model.current_participants} participants"
+                    detail=f"Cannot reduce max participants to {event_update.max_participants} when there are already {event_model.current_participants} participants",
                 )
             event_model.max_participants = event_update.max_participants
 
@@ -291,7 +331,9 @@ async def update_event(event_id: str, event_update: EventUpdate, user_id: str, d
 
         if event_update.event_date is not None:
             # Convert string to datetime
-            event_date = datetime.fromisoformat(event_update.event_date.replace('Z', '+00:00'))
+            event_date = datetime.fromisoformat(
+                event_update.event_date.replace("Z", "+00:00")
+            )
             event_model.event_date = event_date
 
         if event_update.price is not None:
@@ -322,7 +364,9 @@ async def soft_delete_event(event_id: str, user_id: str, db: Session) -> Dict[st
 
     # Verify that the user is the host
     if event_model.host_user_id != user_id:
-        raise HTTPException(status_code=403, detail="Only the event host can delete the event")
+        raise HTTPException(
+            status_code=403, detail="Only the event host can delete the event"
+        )
 
     try:
         # Soft delete: set is_deleted to True
@@ -332,3 +376,84 @@ async def soft_delete_event(event_id: str, user_id: str, db: Session) -> Dict[st
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=400, detail=f"Error deleting event: {str(e)}")
+
+
+async def refund_event_participation(
+    event_id: str, user_id: str, db: Session
+) -> RefundResponse:
+    """Process a refund for a user's event participation"""
+    try:
+        event_model = (
+            db.query(EventModel)
+            .filter(EventModel.id == event_id, EventModel.is_deleted == False)
+            .first()
+        )
+
+        if not event_model:
+            raise HTTPException(status_code=404, detail="Event not found")
+
+        participation = (
+            db.query(EventParticipantModel)
+            .filter(
+                EventParticipantModel.event_id == event_id,
+                EventParticipantModel.participant_id == user_id,
+                EventParticipantModel.status == "confirmed",
+            )
+            .first()
+        )
+
+        if not participation:
+            raise HTTPException(status_code=400, detail="Not registered for this event")
+
+        if not participation.payment_intent_id:
+            raise HTTPException(status_code=400, detail="Payment not found")
+
+        if participation.refunded_at is not None:
+            raise HTTPException(status_code=400, detail="Already refunded")
+
+        now = datetime.now(timezone.utc)
+
+        hours_since_reservation = (now - participation.joined_at).total_seconds() / 3600
+        within_reservation_window = hours_since_reservation <= 12
+
+        if not within_reservation_window:
+            raise HTTPException(status_code=400, detail="Refund window has expired")
+
+        hours_until_event = (event_model.event_date - now).total_seconds() / 3600
+        before_event_window = hours_until_event >= 24
+
+        if not before_event_window:
+            raise HTTPException(status_code=400, detail="Too close to event time")
+
+        refund_amount_cents = (event_model.price * 70) // 100
+
+        try:
+            refund = stripe.Refund.create(
+                payment_intent=participation.payment_intent_id,
+                amount=refund_amount_cents,
+                reverse_transfer=True,
+            )
+        except stripe.error.InvalidRequestError:
+            raise HTTPException(status_code=400, detail="Refund not available")
+        except stripe.error.StripeError:
+            raise HTTPException(status_code=500, detail="Refund failed")
+
+        try:
+            participation.status = "cancelled"
+            participation.refunded_at = datetime.now(timezone.utc)
+            event_model.current_participants -= 1
+            db.commit()
+        except Exception:
+            db.rollback()
+            raise HTTPException(status_code=500, detail="Refund failed")
+
+        return RefundResponse(
+            refund_amount_cents=refund_amount_cents,
+            message="Refund processed successfully",
+        )
+
+    except HTTPException:
+        raise
+    except Exception:
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Refund failed")

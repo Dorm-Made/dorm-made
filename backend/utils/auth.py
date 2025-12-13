@@ -8,7 +8,10 @@ from utils.database import get_db
 
 security = HTTPBearer()
 
-async def get_current_user_id(credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)]) -> str:
+
+async def get_current_user_id(
+    credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)],
+) -> str:
     """
     Dependency to extract and verify JWT token, returning the user ID.
 
@@ -34,9 +37,10 @@ async def get_current_user_id(credentials: Annotated[HTTPAuthorizationCredential
             headers={"WWW-Authenticate": "Bearer"},
         )
 
+
 async def get_current_user(
     user_id: Annotated[str, Depends(get_current_user_id)],
-    db: Annotated[Session, Depends(get_db)]
+    db: Annotated[Session, Depends(get_db)],
 ):
     """
     Dependency to verify that the user exists in the database.

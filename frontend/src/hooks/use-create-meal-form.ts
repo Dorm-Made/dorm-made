@@ -16,17 +16,14 @@ export function useCreateMealForm() {
   const { toast } = useToast();
   const navigate = useNavigate();
 
-  // Form state
   const [formData, setFormData] = useState<MealFormData>({
     name: "",
     description: "",
     ingredients: "",
   });
 
-  // Meal state
   const [selectedMeal, setSelectedMeal] = useState<Meal | null>(null);
 
-  // Check authentication on mount
   useEffect(() => {
     const token = getAuthToken();
     const user = localStorage.getItem("currentUser");

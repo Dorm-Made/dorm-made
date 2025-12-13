@@ -76,7 +76,6 @@ export function useAuth(): UseAuthReturn {
 
   const login = useCallback(
     async (data: LoginFormData) => {
-      // Validation
       if (!data.email || !data.password) {
         toast({
           title: "Error",
@@ -95,14 +94,11 @@ export function useAuth(): UseAuthReturn {
           password: data.password,
         });
 
-        // Store the JWT token
         setAuthToken(loginResponse.access_token);
 
-        // Store the real user data from the backend
         localStorage.setItem("currentUser", JSON.stringify(loginResponse.user));
         localStorage.setItem("userEmail", loginResponse.user.email);
 
-        // Dispatch custom event to notify Header of login
         window.dispatchEvent(new CustomEvent("userLogin"));
 
         toast({

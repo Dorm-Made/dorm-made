@@ -35,3 +35,8 @@ export interface EventUpdate {
 export interface JoinEventRequest {
   event_id: string;
 }
+
+export interface RefundResponse {
+  refund_amount_cents: number;
+  message: string;
+}

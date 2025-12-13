@@ -5,10 +5,6 @@ interface UsePasswordToggleReturn {
   togglePassword: () => void;
 }
 
-/**
- * Custom hook for toggling password visibility
- * Useful for password input fields with show/hide functionality
- */
 export function usePasswordToggle(): UsePasswordToggleReturn {
   const [showPassword, setShowPassword] = useState(false);
 
