@@ -2,6 +2,7 @@ from fastapi import APIRouter, Request, HTTPException, Depends
 from sqlalchemy.orm import Session
 from typing import Dict, Any
 import uuid
+import logging
 
 from utils.database import get_db
 from services.gateways import stripe_service
@@ -9,6 +10,8 @@ from services import user_service
 from schemas.stripe import WebhookResponse
 from models.event import EventModel
 from models.event_participant import EventParticipantModel
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/webhooks/stripe", tags=["stripe_webhook"])
 
@@ -25,6 +28,7 @@ async def handle_checkout_session_completed(
     payment_intent_id = session.get("payment_intent")
 
     if not event_id or not foodie_id:
+        logger.warning("Webhook received with missing metadata")
         return WebhookResponse(
             received=True, message="Missing required metadata, skipping"
         )
@@ -44,6 +48,7 @@ async def handle_checkout_session_completed(
                 existing_participant.status == "confirmed"
                 and existing_participant.payment_intent_id
             ):
+                logger.info(f"Payment already processed for event {event_id}, user {foodie_id}")
                 return WebhookResponse(
                     received=True, message="Payment already processed"
                 )
@@ -52,6 +57,7 @@ async def handle_checkout_session_completed(
             existing_participant.payment_intent_id = payment_intent_id
             db.commit()
 
+            logger.info(f"Updated participation for event {event_id}, user {foodie_id}")
             return WebhookResponse(
                 received=True, message=f"Updated participation for event {event_id}"
             )
@@ -72,12 +78,14 @@ async def handle_checkout_session_completed(
 
         db.commit()
 
+        logger.info(f"Created participation for event {event_id}, user {foodie_id}")
         return WebhookResponse(
             received=True, message=f"Created participation for event {event_id}"
         )
 
     except Exception as e:
         db.rollback()
+        logger.error(f"Error processing webhook for event {event_id}, user {foodie_id}: {e}", exc_info=True)
         return WebhookResponse(
             received=True, message=f"Error processing webhook: {str(e)}"
         )
@@ -90,6 +98,7 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
     signature = request.headers.get("stripe-signature")
 
     if not signature:
+        logger.warning("Webhook received without stripe-signature header")
         raise HTTPException(status_code=400, detail="Missing stripe-signature header")
 
     event = stripe_service.validate_webhook_signature(
@@ -97,6 +106,7 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
     )
 
     event_type = event["type"]
+    logger.info(f"Stripe webhook received: {event_type}")
 
     if event_type == "checkout.session.completed":
         return await handle_checkout_session_completed(event, db)

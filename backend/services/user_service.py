@@ -3,12 +3,15 @@ from typing import Optional, List
 from sqlalchemy.orm import Session
 from datetime import datetime
 import uuid
+import logging
 
 from models.user import UserModel
 from schemas.user import User, UserCreate, UserLogin, UserUpdate, LoginResponse
 from utils.password import hash_password, verify_password, create_access_token
 from utils.converters import user_model_to_schema, user_models_to_schemas
 from utils.supabase import supabase
+
+logger = logging.getLogger(__name__)
 
 
 async def get_user(user_id: str, db: Session) -> Optional[User]:
@@ -19,10 +22,7 @@ async def get_user(user_id: str, db: Session) -> Optional[User]:
             return user_model_to_schema(user_model)
         return None
     except Exception as e:
-        print(f"Error getting user: {e}")
-        import traceback
-
-        traceback.print_exc()
+        logger.error(f"Error getting user {user_id}: {e}", exc_info=True)
         return None
 
 
@@ -34,6 +34,7 @@ async def create_user(user: UserCreate, db: Session) -> User:
             db.query(UserModel).filter(UserModel.email == user.email).first()
         )
         if existing_user:
+            logger.warning(f"Attempt to register with existing email: {user.email}")
             raise HTTPException(status_code=400, detail="Email already registered")
 
         # Hash password
@@ -53,12 +54,13 @@ async def create_user(user: UserCreate, db: Session) -> User:
         db.commit()
         db.refresh(user_model)
 
+        logger.info(f"User created successfully: {user_model.id}")
         return user_model_to_schema(user_model)
     except HTTPException:
         raise
     except Exception as e:
         db.rollback()
-        print(str(e))
+        logger.error(f"Error creating user: {e}", exc_info=True)
         raise HTTPException(status_code=400, detail=f"Error creating user: {str(e)}")
 
 
@@ -67,7 +69,7 @@ def get_user_by_email(email: str, db: Session) -> Optional[UserModel]:
     try:
         return db.query(UserModel).filter(UserModel.email == email).first()
     except Exception as e:
-        print(f"Error getting user by email: {e}")
+        logger.error(f"Error getting user by email: {e}", exc_info=True)
         return None
 
 
@@ -76,7 +78,7 @@ def get_user_by_id(user_id: str, db: Session) -> Optional[UserModel]:
     try:
         return db.query(UserModel).filter(UserModel.id == user_id).first()
     except Exception as e:
-        print(f"Error getting user by ID: {e}")
+        logger.error(f"Error getting user by ID {user_id}: {e}", exc_info=True)
         return None
 
 
@@ -84,13 +86,15 @@ async def authenticate_user(login_data: UserLogin, db: Session) -> LoginResponse
     """Authenticate user and return JWT token"""
     user_model = get_user_by_email(login_data.email, db)
     if not user_model:
+        logger.warning(f"Failed login attempt for email: {login_data.email}")
         raise HTTPException(status_code=401, detail="Invalid email or password")
 
     if not verify_password(login_data.password, user_model.hashed_password):
+        logger.warning(f"Invalid password for user: {login_data.email}")
         raise HTTPException(status_code=401, detail="Invalid email or password")
 
-    print(f"Creating token with user ID: {user_model.id} (type: {type(user_model.id)})")
     access_token = create_access_token(data={"userId": user_model.id})
+    logger.info(f"User authenticated successfully: {user_model.id}")
 
     return LoginResponse(
         access_token=access_token,
@@ -117,15 +121,13 @@ async def update_user(user_id: str, user_update: UserUpdate, db: Session) -> Use
         db.commit()
         db.refresh(user_model)
 
+        logger.info(f"User updated successfully: {user_id}")
         return user_model_to_schema(user_model)
     except HTTPException:
         raise
     except Exception as e:
         db.rollback()
-        print(f"Error updating user: {e}")
-        import traceback
-
-        traceback.print_exc()
+        logger.error(f"Error updating user {user_id}: {e}", exc_info=True)
         raise HTTPException(status_code=400, detail=f"Error updating user: {str(e)}")
 
 
@@ -143,12 +145,10 @@ async def search_users(query: str, db: Session, limit: int = 10) -> List[User]:
             .all()
         )
 
+        logger.info(f"User search for '{query}' returned {len(user_models)} results")
         return user_models_to_schemas(user_models)
     except Exception as e:
-        print(f"Error searching users: {e}")
-        import traceback
-
-        traceback.print_exc()
+        logger.error(f"Error searching users with query '{query}': {e}", exc_info=True)
         raise HTTPException(status_code=400, detail=f"Error searching users: {str(e)}")
 
 
@@ -186,7 +186,7 @@ async def upload_profile_picture(user_id: str, image: UploadFile, db: Session) -
                     )[0]
                     supabase.storage.from_("profile-pictures").remove([old_filename])
             except Exception as e:
-                print(f"Error deleting old profile picture: {e}")
+                logger.warning(f"Failed to delete old profile picture for user {user_id}: {e}")
                 # Continue with upload even if deletion fails
 
         # Generate unique filename
@@ -208,14 +208,12 @@ async def upload_profile_picture(user_id: str, image: UploadFile, db: Session) -
             user_id, UserUpdate(profile_picture=public_url), db
         )
 
+        logger.info(f"Profile picture uploaded successfully for user: {user_id}")
         return updated_user
     except HTTPException:
         raise
     except Exception as e:
-        print(f"Error uploading profile picture: {e}")
-        import traceback
-
-        traceback.print_exc()
+        logger.error(f"Error uploading profile picture for user {user_id}: {e}", exc_info=True)
         raise HTTPException(
             status_code=400, detail=f"Erro ao fazer upload da foto: {str(e)}"
         )
@@ -233,11 +231,13 @@ async def update_stripe_account(
         db.commit()
         db.refresh(user_model)
 
+        logger.info(f"Stripe account linked for user {user_id}: {stripe_account_id}")
         return user_model_to_schema(user_model)
     except HTTPException:
         raise
     except Exception as e:
         db.rollback()
+        logger.error(f"Error updating stripe account for user {user_id}: {e}", exc_info=True)
         raise HTTPException(status_code=400, detail=f"Error updating user: {str(e)}")
 
 
@@ -253,11 +253,13 @@ async def update_stripe_status(
         db.commit()
         db.refresh(user_model)
 
+        logger.info(f"Stripe onboarding status updated for user {user_id}: {onboarding_complete}")
         return user_model_to_schema(user_model)
     except HTTPException:
         raise
     except Exception as e:
         db.rollback()
+        logger.error(f"Error updating stripe status for user {user_id}: {e}", exc_info=True)
         raise HTTPException(
             status_code=400, detail=f"Error updating stripe status: {str(e)}"
         )
@@ -271,5 +273,5 @@ def get_user_by_stripe_account(stripe_account_id: str, db: Session) -> Optional[
             .first()
         )
     except Exception as e:
-        print(f"Error finding user by Stripe account: {e}")
+        logger.error(f"Error finding user by Stripe account {stripe_account_id}: {e}", exc_info=True)
         return None

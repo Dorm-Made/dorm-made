@@ -1,6 +1,11 @@
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+
 from dotenv import load_dotenv
+import logging
+import os
+import sys
+
 from alembic.config import Config
 from alembic import command
 from contextlib import asynccontextmanager
@@ -8,7 +13,29 @@ from contextlib import asynccontextmanager
 from routers import users, events, meals, checkout
 from routers.gateways.stripe import webhook
 
+import sentry_sdk
+
 load_dotenv()
+
+logging.basicConfig(
+    level=logging.INFO,
+    format='[%(levelname)s] %(name)s - %(message)s',
+    stream=sys.stdout
+)
+
+logger = logging.getLogger(__name__)
+
+environment = os.getenv("ENVIRONMENT", "dev")
+
+if environment == "prod":
+    sentry_sdk.init(
+        dsn="https://137305a5acd3180c04322048e8269c45@o4510551410147328.ingest.us.sentry.io/4510551411261440",
+        send_default_pii=True,
+        enable_logs=True,
+    )
+    logger.info("Sentry monitoring enabled for production")
+else:
+    logger.info(f"Running in {environment} mode - Sentry disabled")
 
 
 @asynccontextmanager
@@ -16,13 +43,13 @@ async def lifespan(app: FastAPI):
     try:
         alembic_cfg = Config("alembic.ini")
         command.upgrade(alembic_cfg, "head")
-        print("[STARTUP] Database migrations completed successfully")
+        logger.info("Database migrations completed successfully")
     except Exception as e:
-        print(f"[STARTUP] Migration failed: {e}")
+        logger.error(f"Migration failed: {e}")
         raise
     yield
-
     # Code after yield runs on application shutdown
+    logger.info("Application shutdown")
 
 
 app = FastAPI(
@@ -48,15 +75,13 @@ app.add_middleware(
 
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
-    print(f"[REQUEST] {request.method} {request.url.path}")
-    print(f"[REQUEST] Query params: {dict(request.query_params)}")
+    logger.info(f"{request.method} {request.url.path}")
     auth_header = request.headers.get("authorization")
-    if auth_header:
-        print(f"[REQUEST] Authorization: {auth_header[:20]}...")
-    else:
-        print(f"[REQUEST] Authorization: Missing")
+    if not auth_header:
+        logger.debug(f"Request to {request.url.path} without authorization header")
     response = await call_next(request)
-    print(f"[RESPONSE] {response.status_code}")
+    if response.status_code >= 400:
+        logger.warning(f"{request.method} {request.url.path} - {response.status_code}")
     return response
 
 

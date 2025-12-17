@@ -1,7 +1,10 @@
 import stripe
 from typing import Dict, Any
 from fastapi import HTTPException
+import logging
 from utils.config import config
+
+logger = logging.getLogger(__name__)
 
 stripe.api_key = config.STRIPE_SECRET_KEY
 
@@ -31,8 +34,10 @@ async def create_stripe_connect_account(
             },
         )
 
+        logger.info(f"Stripe Connect account created for user {user_id}: {account.id}")
         return {"account_id": account.id, "onboarding_url": account_link.url}
     except stripe.error.StripeError as e:
+        logger.error(f"Stripe error creating account for user {user_id}: {e}")
         raise HTTPException(status_code=400, detail=f"Stripe API error: {str(e)}")
 
 
@@ -46,8 +51,10 @@ async def get_stripe_account_status(stripe_account_id: str) -> Dict[str, Any]:
             "payouts_enabled": account.payouts_enabled,
         }
     except stripe.error.InvalidRequestError:
+        logger.warning(f"Stripe account not found: {stripe_account_id}")
         raise HTTPException(status_code=404, detail="Stripe account not found")
     except stripe.error.StripeError as e:
+        logger.error(f"Stripe error retrieving account {stripe_account_id}: {e}")
         raise HTTPException(status_code=400, detail=f"Stripe API error: {str(e)}")
 
 
@@ -133,8 +140,10 @@ async def create_checkout_session(
             return_url=f"{config.FRONTEND_URL}/explore?session_id={{CHECKOUT_SESSION_ID}}",
         )
 
+        logger.info(f"Checkout session created: {session.id} for event {event_id}, user {foodie_id}")
         return {"client_secret": session.client_secret}
     except stripe.error.StripeError as e:
+        logger.error(f"Stripe error creating checkout for event {event_id}: {e}")
         raise HTTPException(status_code=400, detail=f"Stripe API error: {str(e)}")
 
 

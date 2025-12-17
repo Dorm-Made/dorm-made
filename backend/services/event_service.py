@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from datetime import datetime, timezone
 import uuid
 import stripe
+import logging
 
 from models.event import EventModel
 from models.event_participant import EventParticipantModel
@@ -16,6 +17,8 @@ from utils.supabase import supabase
 from .user_service import get_user
 from .meal_service import get_meal_name
 from .gateways.stripe_service import retrieve_connected_account
+
+logger = logging.getLogger(__name__)
 
 
 def get_event(event_id: str, db: Session) -> Optional[Event]:
@@ -31,7 +34,7 @@ def get_event(event_id: str, db: Session) -> Optional[Event]:
             return event_model_to_schema(event_model, meal_name)
         return None
     except Exception as e:
-        print(f"Error getting event: {e}")
+        logger.error(f"Error getting event {event_id}: {e}", exc_info=True)
         return None
 
 
@@ -49,7 +52,7 @@ def is_user_participating(event_id: str, user_id: str, db: Session) -> bool:
         )
         return participant is not None
     except Exception as e:
-        print(f"Error checking participation: {e}")
+        logger.error(f"Error checking participation for user {user_id} in event {event_id}: {e}", exc_info=True)
         return False
 
 
@@ -102,6 +105,7 @@ async def create_event(
     # Verify host user exists
     host = await get_user(host_user_id, db)
     if not host:
+        logger.warning(f"Attempt to create event with non-existent host: {host_user_id}")
         raise HTTPException(status_code=404, detail="Host user not found")
 
     try:
@@ -135,12 +139,14 @@ async def create_event(
         db.commit()
         db.refresh(event_model)
 
+        logger.info(f"Event created successfully: {event_model.id} by host {host_user_id}")
         meal_name = get_meal_name(event_model.meal_id, db)
         return event_model_to_schema(event_model, meal_name)
     except HTTPException:
         raise
     except Exception as e:
         db.rollback()
+        logger.error(f"Error creating event for host {host_user_id}: {e}", exc_info=True)
         raise HTTPException(status_code=400, detail=f"Error creating event: {str(e)}")
 
 
@@ -155,9 +161,11 @@ async def validate_checkout_requirements(
     )
 
     if not event:
+        logger.warning(f"Checkout validation failed: Event {event_id} not found")
         raise HTTPException(status_code=404, detail="Event not found")
 
     if event.host_user_id == foodie_id:
+        logger.warning(f"Host {foodie_id} attempted to join their own event {event_id}")
         raise HTTPException(status_code=400, detail="Host cannot join their own event")
 
     existing_participation = (
@@ -171,6 +179,7 @@ async def validate_checkout_requirements(
     )
 
     if existing_participation:
+        logger.warning(f"User {foodie_id} attempted to join event {event_id} again")
         raise HTTPException(status_code=400, detail="Already joined this event")
 
     confirmed_count = (
@@ -183,21 +192,26 @@ async def validate_checkout_requirements(
     )
 
     if confirmed_count >= event.max_participants:
+        logger.warning(f"Event {event_id} is full ({confirmed_count}/{event.max_participants})")
         raise HTTPException(status_code=400, detail="Event is full")
 
     chef = db.query(UserModel).filter(UserModel.id == event.host_user_id).first()
 
     if not chef:
+        logger.error(f"Chef {event.host_user_id} not found for event {event_id}")
         raise HTTPException(status_code=404, detail="Chef not found")
 
     if not chef.stripe_account_id:
+        logger.warning(f"Chef {chef.id} has no Stripe account configured")
         raise HTTPException(status_code=400, detail="Chef payment not configured")
 
     account_status = await retrieve_connected_account(chef.stripe_account_id)
 
     if not account_status.get("charges_enabled", False):
+        logger.warning(f"Chef {chef.id} Stripe account not ready for charges")
         raise HTTPException(status_code=400, detail="Chef payment account not ready")
 
+    logger.info(f"Checkout validation passed for event {event_id}, user {foodie_id}")
     return event, chef
 
 
@@ -305,6 +319,7 @@ async def update_event(
 
     # Verify that the user is the host
     if event_model.host_user_id != user_id:
+        logger.warning(f"User {user_id} attempted to update event {event_id} without permission")
         raise HTTPException(
             status_code=403, detail="Only the event host can update the event"
         )
@@ -320,6 +335,7 @@ async def update_event(
         if event_update.max_participants is not None:
             # Validate that new max_participants is not less than current_participants
             if event_update.max_participants < event_model.current_participants:
+                logger.warning(f"Cannot reduce max participants for event {event_id}: {event_update.max_participants} < {event_model.current_participants}")
                 raise HTTPException(
                     status_code=400,
                     detail=f"Cannot reduce max participants to {event_update.max_participants} when there are already {event_model.current_participants} participants",
@@ -342,12 +358,14 @@ async def update_event(
         db.commit()
         db.refresh(event_model)
 
+        logger.info(f"Event {event_id} updated successfully by user {user_id}")
         meal_name = get_meal_name(event_model.meal_id, db)
         return event_model_to_schema(event_model, meal_name)
     except HTTPException:
         raise
     except Exception as e:
         db.rollback()
+        logger.error(f"Error updating event {event_id}: {e}", exc_info=True)
         raise HTTPException(status_code=400, detail=f"Error updating event: {str(e)}")
 
 
@@ -360,10 +378,12 @@ async def soft_delete_event(event_id: str, user_id: str, db: Session) -> Dict[st
 
     # Check if already deleted
     if event_model.is_deleted:
+        logger.warning(f"Attempt to delete already deleted event: {event_id}")
         raise HTTPException(status_code=400, detail="Event is already deleted")
 
     # Verify that the user is the host
     if event_model.host_user_id != user_id:
+        logger.warning(f"User {user_id} attempted to delete event {event_id} without permission")
         raise HTTPException(
             status_code=403, detail="Only the event host can delete the event"
         )
@@ -372,9 +392,11 @@ async def soft_delete_event(event_id: str, user_id: str, db: Session) -> Dict[st
         # Soft delete: set is_deleted to True
         event_model.is_deleted = True
         db.commit()
+        logger.info(f"Event {event_id} soft deleted by user {user_id}")
         return {"message": "Event successfully deleted", "event_id": event_id}
     except Exception as e:
         db.rollback()
+        logger.error(f"Error deleting event {event_id}: {e}", exc_info=True)
         raise HTTPException(status_code=400, detail=f"Error deleting event: {str(e)}")
 
 
@@ -403,12 +425,15 @@ async def refund_event_participation(
         )
 
         if not participation:
+            logger.warning(f"User {user_id} not registered for event {event_id}")
             raise HTTPException(status_code=400, detail="Not registered for this event")
 
         if not participation.payment_intent_id:
+            logger.error(f"No payment intent found for participation: event {event_id}, user {user_id}")
             raise HTTPException(status_code=400, detail="Payment not found")
 
         if participation.refunded_at is not None:
+            logger.warning(f"User {user_id} attempted duplicate refund for event {event_id}")
             raise HTTPException(status_code=400, detail="Already refunded")
 
         now = datetime.now(timezone.utc)
@@ -417,12 +442,14 @@ async def refund_event_participation(
         within_reservation_window = hours_since_reservation <= 12
 
         if not within_reservation_window:
+            logger.warning(f"Refund window expired for user {user_id}, event {event_id} ({hours_since_reservation:.1f}h)")
             raise HTTPException(status_code=400, detail="Refund window has expired")
 
         hours_until_event = (event_model.event_date - now).total_seconds() / 3600
         before_event_window = hours_until_event >= 24
 
         if not before_event_window:
+            logger.warning(f"Refund too close to event time for user {user_id}, event {event_id} ({hours_until_event:.1f}h)")
             raise HTTPException(status_code=400, detail="Too close to event time")
 
         refund_amount_cents = (event_model.price * 70) // 100
@@ -433,9 +460,12 @@ async def refund_event_participation(
                 amount=refund_amount_cents,
                 reverse_transfer=True,
             )
-        except stripe.error.InvalidRequestError:
+            logger.info(f"Stripe refund created: {refund.id} for event {event_id}, user {user_id}")
+        except stripe.error.InvalidRequestError as e:
+            logger.error(f"Stripe invalid request for refund: event {event_id}, user {user_id}: {e}")
             raise HTTPException(status_code=400, detail="Refund not available")
-        except stripe.error.StripeError:
+        except stripe.error.StripeError as e:
+            logger.error(f"Stripe error during refund: event {event_id}, user {user_id}: {e}")
             raise HTTPException(status_code=500, detail="Refund failed")
 
         try:
@@ -443,8 +473,10 @@ async def refund_event_participation(
             participation.refunded_at = datetime.now(timezone.utc)
             event_model.current_participants -= 1
             db.commit()
-        except Exception:
+            logger.info(f"Refund processed successfully: event {event_id}, user {user_id}, amount ${refund_amount_cents/100:.2f}")
+        except Exception as e:
             db.rollback()
+            logger.error(f"Database error during refund: event {event_id}, user {user_id}: {e}", exc_info=True)
             raise HTTPException(status_code=500, detail="Refund failed")
 
         return RefundResponse(
@@ -454,6 +486,7 @@ async def refund_event_participation(
 
     except HTTPException:
         raise
-    except Exception:
+    except Exception as e:
         db.rollback()
+        logger.error(f"Unexpected error during refund: event {event_id}, user {user_id}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Refund failed")

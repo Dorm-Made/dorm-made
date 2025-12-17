@@ -3,12 +3,15 @@ from typing import Dict, List, Optional
 from sqlalchemy.orm import Session
 from datetime import datetime
 import uuid
+import logging
 
 from models.meal import MealModel
 from schemas.meal import Meal, MealCreate, MealUpdate
 from utils.converters import meal_model_to_schema, meal_models_to_schemas
 from utils.supabase import supabase
 from .user_service import get_user
+
+logger = logging.getLogger(__name__)
 
 
 async def upload_meal_image(image: UploadFile) -> str:
@@ -64,6 +67,7 @@ async def create_meal(
     # Verify user exists
     user = await get_user(user_id, db)
     if not user:
+        logger.warning(f"Attempt to create meal with non-existent user: {user_id}")
         raise HTTPException(status_code=404, detail="User not found")
 
     try:
@@ -87,11 +91,13 @@ async def create_meal(
         db.commit()
         db.refresh(meal_model)
 
+        logger.info(f"Meal created successfully: {meal_model.id} by user {user_id}")
         return meal_model_to_schema(meal_model)
     except HTTPException:
         raise
     except Exception as e:
         db.rollback()
+        logger.error(f"Error creating meal for user {user_id}: {e}", exc_info=True)
         raise HTTPException(status_code=400, detail=f"Error creating meal: {str(e)}")
 
 
@@ -154,6 +160,7 @@ async def update_meal(
 
     # Verify that the user is the creator
     if meal_model.user_id != user_id:
+        logger.warning(f"User {user_id} attempted to update meal {meal_id} without permission")
         raise HTTPException(
             status_code=403, detail="Only the meal creator can update the meal"
         )
@@ -172,11 +179,13 @@ async def update_meal(
         db.commit()
         db.refresh(meal_model)
 
+        logger.info(f"Meal {meal_id} updated successfully by user {user_id}")
         return meal_model_to_schema(meal_model)
     except HTTPException:
         raise
     except Exception as e:
         db.rollback()
+        logger.error(f"Error updating meal {meal_id}: {e}", exc_info=True)
         raise HTTPException(status_code=400, detail=f"Error updating meal: {str(e)}")
 
 
@@ -191,10 +200,12 @@ async def soft_delete_meal(meal_id: str, user_id: str, db: Session) -> Dict[str,
 
     # Check if already deleted
     if meal_model.is_deleted:
+        logger.warning(f"Attempt to delete already deleted meal: {meal_id}")
         raise HTTPException(status_code=400, detail="Meal is already deleted")
 
     # Verify that the user is the creator
     if meal_model.user_id != user_id:
+        logger.warning(f"User {user_id} attempted to delete meal {meal_id} without permission")
         raise HTTPException(
             status_code=403, detail="Only the meal creator can delete the meal"
         )
@@ -203,7 +214,9 @@ async def soft_delete_meal(meal_id: str, user_id: str, db: Session) -> Dict[str,
         # Soft delete: set is_deleted to True
         meal_model.is_deleted = True
         db.commit()
+        logger.info(f"Meal {meal_id} soft deleted by user {user_id}")
         return {"message": "Meal successfully deleted", "meal_id": meal_id}
     except Exception as e:
         db.rollback()
+        logger.error(f"Error deleting meal {meal_id}: {e}", exc_info=True)
         raise HTTPException(status_code=400, detail=f"Error deleting meal: {str(e)}")

@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, File, UploadFile
 from typing import List, Annotated
 from sqlalchemy.orm import Session
+import logging
 
 from schemas.user import User, UserCreate, UserLogin, UserUpdate, LoginResponse
 from schemas.stripe import (
@@ -13,6 +14,8 @@ from utils.database import get_db
 from utils.config import config
 from services import user_service
 from services.gateways import stripe_service
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -150,9 +153,7 @@ async def update_user_profile_endpoint(
 @router.get("/{user_id}", response_model=User)
 async def get_user_by_id_endpoint(user_id: str, db: Session = Depends(get_db)):
     """Get user by ID"""
-    print(f"GET /users/{user_id} called")
     user = await user_service.get_user(user_id, db)
-    print(f"User found: {user is not None}")
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     return user
