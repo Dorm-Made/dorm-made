@@ -1,16 +1,34 @@
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
+from alembic.config import Config
+from alembic import command
+from contextlib import asynccontextmanager
 
 from routers import users, events, meals, checkout
 from routers.gateways.stripe import webhook
 
 load_dotenv()
 
-# Initialize FastAPI app
-app = FastAPI(title="Dorm Made - Culinary Social Network", version="1.0.0")
 
-# Add CORS middleware
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    try:
+        alembic_cfg = Config("alembic.ini")
+        command.upgrade(alembic_cfg, "head")
+        print("[STARTUP] Database migrations completed successfully")
+    except Exception as e:
+        print(f"[STARTUP] Migration failed: {e}")
+        raise
+    yield
+
+    # Code after yield runs on application shutdown
+
+
+app = FastAPI(
+    title="Dorm Made - Culinary Social Network", version="1.0.0", lifespan=lifespan
+)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],  # Allows all origins
@@ -23,12 +41,11 @@ app.add_middleware(
         "OPTIONS",
         "PATCH",
     ],  # Explicit methods
-    allow_headers=["*"],  # Allows all headers
-    expose_headers=["*"],  # Expose all headers
+    allow_headers=["*"],
+    expose_headers=["*"],
 )
 
 
-# Debug middleware to log all requests
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
     print(f"[REQUEST] {request.method} {request.url.path}")
@@ -43,7 +60,6 @@ async def log_requests(request: Request, call_next):
     return response
 
 
-# Include routers
 app.include_router(users.router)
 app.include_router(events.router)
 app.include_router(meals.router)
@@ -59,6 +75,4 @@ async def root():
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run(
-        "main:app", host="0.0.0.0", port=8000, reload=True, reload_dirs=["./"]
-    )
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True, reload_dirs=["./"])

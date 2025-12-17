@@ -1,0 +1,9 @@
+Generic single-database configuration.
+
+After adding changes to the database, run the following command:
+
+alembic revision --autogenerate -m "<nome da migration>"
+
+To reflect the changes in local db:
+
+alembic upgrade head
