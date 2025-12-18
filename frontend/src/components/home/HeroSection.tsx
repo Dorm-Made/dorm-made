@@ -25,30 +25,34 @@ export function HeroSection() {
   };
 
   return (
-    <section className="relative py-12 grow">
-      <div className="container mx-auto px-4">
-        <div className="max-w-4xl mx-auto text-center space-y-6">
-          {/* Main Heading - Mobile Optimized */}
+    <section className="relative py-12 flex-1 flex items-center">
+      <div
+        className="absolute inset-0 bg-cover bg-center bg-no-repeat lg:hidden"
+        style={{ backgroundImage: "url(/images/hero-background-mobile.jpg)" }}
+      />
+      <div
+        className="absolute inset-0 bg-cover bg-center bg-no-repeat hidden lg:block"
+        style={{ backgroundImage: "url(/images/hero-background.jpeg)" }}
+      />
+      <div className="container mx-auto px-4 relative z-10 w-full">
+        <div className="flex items-center flex-col max-w-4xl mx-auto text-center space-y-6">
           <h1 className="text-4xl lg:text-6xl font-bold tracking-tight">
             <span className="bg-gradient-to-r from-primary to-red-200 text-transparent bg-clip-text">
               Share & Taste Culture
             </span>
           </h1>
 
-          {/* Subheading - Responsive Text */}
-          <p className="text-lg lg:text-2xl text-muted-foreground mx-auto max-w-2xl px-4">
+          <p className="text-lg lg:text-2xl text-white mx-auto max-w-2xl px-4">
             Connect to College Students Cooking Near You
           </p>
 
-          {/* Body Copy - Shorter on Mobile */}
-          <p className="text-base text-muted-foreground max-w-xl mx-auto px-4">
+          <p className="text-base text-white max-w-xl mx-auto px-4">
             Student chefs host group meals and share cultural experiences.
           </p>
 
           {/* CTA Buttons - Stacked on Mobile, Side-by-Side on Desktop */}
-          <div className="w-full max-w-md mx-auto px-4 pt-4 md:pt-6">
+          <div className="w-full max-w-md mx-auto px-4 pt-4">
             <div className="flex flex-col lg:flex-row gap-4">
-              {/* Primary CTA - Full Width on Mobile */}
               <Button
                 size="lg"
                 variant="default"
@@ -59,7 +63,6 @@ export function HeroSection() {
                 Start hosting meals
               </Button>
 
-              {/* Secondary CTA - Full Width on Mobile */}
               <Button
                 size="lg"
                 variant="outline"
