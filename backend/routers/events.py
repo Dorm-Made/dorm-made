@@ -71,7 +71,7 @@ async def create_event_endpoint(
 @router.post(
     "/{event_id}/create-checkout-session",
     response_model=CreateCheckoutSessionResponse,
-    response_model_by_alias=True
+    response_model_by_alias=True,
 )
 async def create_checkout_session_endpoint(
     event_id: str,
@@ -80,9 +80,13 @@ async def create_checkout_session_endpoint(
 ):
     """Create a Stripe Embedded Checkout Session for event payment"""
     try:
-        event, chef = await event_service.validate_checkout_requirements(event_id, current_user_id, db)
+        event, chef = await event_service.validate_checkout_requirements(
+            event_id, current_user_id, db
+        )
 
-        event_description = f"Event on {event.event_date.strftime('%B %d, %Y at %I:%M %p')}"
+        event_description = (
+            f"Event on {event.event_date.strftime('%B %d, %Y at %I:%M %p')}"
+        )
 
         result = await create_checkout_session(
             event_id=event_id,
@@ -100,8 +104,7 @@ async def create_checkout_session_endpoint(
         raise
     except Exception as e:
         raise HTTPException(
-            status_code=400,
-            detail=f"Error creating checkout session: {str(e)}"
+            status_code=400, detail=f"Error creating checkout session: {str(e)}"
         )
 
 

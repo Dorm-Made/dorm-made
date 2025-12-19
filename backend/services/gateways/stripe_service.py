@@ -140,7 +140,9 @@ async def create_checkout_session(
             return_url=f"{config.FRONTEND_URL}/explore?session_id={{CHECKOUT_SESSION_ID}}",
         )
 
-        logger.info(f"Checkout session created: {session.id} for event {event_id}, user {foodie_id}")
+        logger.info(
+            f"Checkout session created: {session.id} for event {event_id}, user {foodie_id}"
+        )
         return {"client_secret": session.client_secret}
     except stripe.error.StripeError as e:
         logger.error(f"Stripe error creating checkout for event {event_id}: {e}")

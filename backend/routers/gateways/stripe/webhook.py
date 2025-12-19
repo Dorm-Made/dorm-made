@@ -48,7 +48,9 @@ async def handle_checkout_session_completed(
                 existing_participant.status == "confirmed"
                 and existing_participant.payment_intent_id
             ):
-                logger.info(f"Payment already processed for event {event_id}, user {foodie_id}")
+                logger.info(
+                    f"Payment already processed for event {event_id}, user {foodie_id}"
+                )
                 return WebhookResponse(
                     received=True, message="Payment already processed"
                 )
@@ -85,7 +87,10 @@ async def handle_checkout_session_completed(
 
     except Exception as e:
         db.rollback()
-        logger.error(f"Error processing webhook for event {event_id}, user {foodie_id}: {e}", exc_info=True)
+        logger.error(
+            f"Error processing webhook for event {event_id}, user {foodie_id}: {e}",
+            exc_info=True,
+        )
         return WebhookResponse(
             received=True, message=f"Error processing webhook: {str(e)}"
         )

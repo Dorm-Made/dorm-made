@@ -160,7 +160,9 @@ async def update_meal(
 
     # Verify that the user is the creator
     if meal_model.user_id != user_id:
-        logger.warning(f"User {user_id} attempted to update meal {meal_id} without permission")
+        logger.warning(
+            f"User {user_id} attempted to update meal {meal_id} without permission"
+        )
         raise HTTPException(
             status_code=403, detail="Only the meal creator can update the meal"
         )
@@ -205,7 +207,9 @@ async def soft_delete_meal(meal_id: str, user_id: str, db: Session) -> Dict[str,
 
     # Verify that the user is the creator
     if meal_model.user_id != user_id:
-        logger.warning(f"User {user_id} attempted to delete meal {meal_id} without permission")
+        logger.warning(
+            f"User {user_id} attempted to delete meal {meal_id} without permission"
+        )
         raise HTTPException(
             status_code=403, detail="Only the meal creator can delete the meal"
         )

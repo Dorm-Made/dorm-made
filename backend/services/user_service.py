@@ -186,7 +186,9 @@ async def upload_profile_picture(user_id: str, image: UploadFile, db: Session) -
                     )[0]
                     supabase.storage.from_("profile-pictures").remove([old_filename])
             except Exception as e:
-                logger.warning(f"Failed to delete old profile picture for user {user_id}: {e}")
+                logger.warning(
+                    f"Failed to delete old profile picture for user {user_id}: {e}"
+                )
                 # Continue with upload even if deletion fails
 
         # Generate unique filename
@@ -213,7 +215,9 @@ async def upload_profile_picture(user_id: str, image: UploadFile, db: Session) -
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error uploading profile picture for user {user_id}: {e}", exc_info=True)
+        logger.error(
+            f"Error uploading profile picture for user {user_id}: {e}", exc_info=True
+        )
         raise HTTPException(
             status_code=400, detail=f"Erro ao fazer upload da foto: {str(e)}"
         )
@@ -237,7 +241,9 @@ async def update_stripe_account(
         raise
     except Exception as e:
         db.rollback()
-        logger.error(f"Error updating stripe account for user {user_id}: {e}", exc_info=True)
+        logger.error(
+            f"Error updating stripe account for user {user_id}: {e}", exc_info=True
+        )
         raise HTTPException(status_code=400, detail=f"Error updating user: {str(e)}")
 
 
@@ -253,19 +259,25 @@ async def update_stripe_status(
         db.commit()
         db.refresh(user_model)
 
-        logger.info(f"Stripe onboarding status updated for user {user_id}: {onboarding_complete}")
+        logger.info(
+            f"Stripe onboarding status updated for user {user_id}: {onboarding_complete}"
+        )
         return user_model_to_schema(user_model)
     except HTTPException:
         raise
     except Exception as e:
         db.rollback()
-        logger.error(f"Error updating stripe status for user {user_id}: {e}", exc_info=True)
+        logger.error(
+            f"Error updating stripe status for user {user_id}: {e}", exc_info=True
+        )
         raise HTTPException(
             status_code=400, detail=f"Error updating stripe status: {str(e)}"
         )
 
 
-def get_user_by_stripe_account(stripe_account_id: str, db: Session) -> Optional[UserModel]:
+def get_user_by_stripe_account(
+    stripe_account_id: str, db: Session
+) -> Optional[UserModel]:
     try:
         return (
             db.query(UserModel)
@@ -273,5 +285,8 @@ def get_user_by_stripe_account(stripe_account_id: str, db: Session) -> Optional[
             .first()
         )
     except Exception as e:
-        logger.error(f"Error finding user by Stripe account {stripe_account_id}: {e}", exc_info=True)
+        logger.error(
+            f"Error finding user by Stripe account {stripe_account_id}: {e}",
+            exc_info=True,
+        )
         return None
