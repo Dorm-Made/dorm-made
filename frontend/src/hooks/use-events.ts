@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import { getEvents, getMyEvents, getJoinedEvents, joinEvent as joinEventApi } from "@/services";
+import { eventService } from "@/services";
 import { Event } from "@/types";
 import { useToast } from "@/hooks/use-toast";
 import { getErrorMessage } from "@/utils/error";
@@ -28,7 +28,7 @@ export function useEvents(): UseEventsReturn {
     try {
       setLoading(true);
       setError(null);
-      const events = await getEvents();
+      const events = await eventService.getEvents();
       setAllEvents(events);
     } catch (err) {
       const error = err instanceof Error ? err : new Error("Failed to load events");
@@ -47,7 +47,7 @@ export function useEvents(): UseEventsReturn {
 
   const loadMyEvents = useCallback(async () => {
     try {
-      const events = await getMyEvents();
+      const events = await eventService.getMyEvents();
       setMyEvents(events);
     } catch (err) {
       console.error("Error loading my events:", err);
@@ -58,7 +58,7 @@ export function useEvents(): UseEventsReturn {
 
   const loadJoinedEvents = useCallback(async () => {
     try {
-      const events = await getJoinedEvents();
+      const events = await eventService.getJoinedEvents();
       setJoinedEvents(events);
     } catch (err) {
       console.error("Error loading joined events:", err);

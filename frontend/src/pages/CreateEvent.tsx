@@ -15,7 +15,7 @@ import { useImageUpload } from "@/hooks/use-image-upload";
 import { useMeals } from "@/hooks/use-meals";
 import { useToast } from "@/hooks/use-toast";
 import { useStripeConnect } from "@/hooks/use-stripe-connect";
-import { createEvent, getAuthToken } from "@/services";
+import { eventService, authService } from "@/services";
 import { getPriceInCents } from "@/utils/price";
 import { User } from "@/types";
 import { analytics } from "@/lib/analytics";
@@ -86,7 +86,7 @@ export default function CreateEvent() {
     setLoading(true);
 
     try {
-      const token = getAuthToken();
+      const token = authService.getAuthToken();
       if (!token) {
         toast({
           title: "Authentication Required",
@@ -99,7 +99,7 @@ export default function CreateEvent() {
       }
 
       const payload = buildPayload();
-      const event = await createEvent(payload);
+      const event = await eventService.createEvent(payload);
 
       const currentUser = localStorage.getItem("currentUser");
       if (currentUser) {

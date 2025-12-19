@@ -6,7 +6,7 @@ import { CreditCard, CheckCircle2, XCircle, AlertCircle, Loader2, RefreshCw } fr
 import { StatusHeader } from "./StatusHeader";
 import { AccountDetailRow } from "./AccountDetailRow";
 import { StatusIndicator } from "./StatusIndicator";
-import { getStripeLoginLink } from "@/services/user.service";
+import { userService } from "@/services";
 import { useToast } from "@/hooks/use-toast";
 import { getErrorMessage } from "@/utils/error";
 
@@ -22,7 +22,7 @@ export function ProfilePaymentsTab() {
   const handleViewDetails = async () => {
     try {
       setLoadingLoginLink(true);
-      const response = await getStripeLoginLink();
+      const response = await userService.getStripeLoginLink();
       window.location.href = response.account_url;
     } catch (err) {
       toast({
@@ -103,7 +103,12 @@ export function ProfilePaymentsTab() {
         <Separator />
 
         <div className="flex flex-col lg:flex-row gap-3">
-          <Button onClick={checkStatus} variant="outline" className="w-full lg:flex-1" disabled={loading}>
+          <Button
+            onClick={checkStatus}
+            variant="outline"
+            className="w-full lg:flex-1"
+            disabled={loading}
+          >
             {loading ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -171,7 +176,12 @@ export function ProfilePaymentsTab() {
         <Separator />
 
         <div className="flex flex-col lg:flex-row gap-3">
-          <Button onClick={checkStatus} variant="outline" className="w-full lg:flex-1" disabled={loading}>
+          <Button
+            onClick={checkStatus}
+            variant="outline"
+            className="w-full lg:flex-1"
+            disabled={loading}
+          >
             {loading ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />

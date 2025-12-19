@@ -1,34 +1,43 @@
 import { httpClient } from "./http-client";
 import { Meal, MealCreate, MealUpdate } from "@/types";
 
-export const createMeal = async (mealData: MealCreate | FormData): Promise<Meal> => {
+async function createMeal(mealData: MealCreate | FormData): Promise<Meal> {
   const response = await httpClient.post("/meals/", mealData);
   return response.data;
-};
+}
 
-export const getMyMeals = async (): Promise<Meal[]> => {
+async function getMyMeals(): Promise<Meal[]> {
   const response = await httpClient.get("/meals/me");
   return response.data;
-};
+}
 
-export const getUserMeals = async (userId: string): Promise<Meal[]> => {
+async function getUserMeals(userId: string): Promise<Meal[]> {
   const response = await httpClient.get("/meals/", {
     params: { user_id: userId },
   });
   return response.data;
-};
+}
 
-export const getMeal = async (mealId: string): Promise<Meal> => {
+async function getMeal(mealId: string): Promise<Meal> {
   const response = await httpClient.get(`/meals/${mealId}`);
   return response.data;
-};
+}
 
-export const updateMeal = async (mealId: string, mealData: MealUpdate): Promise<Meal> => {
+async function updateMeal(mealId: string, mealData: MealUpdate): Promise<Meal> {
   const response = await httpClient.put(`/meals/${mealId}`, mealData);
   return response.data;
-};
+}
 
-export const deleteMeal = async (mealId: string): Promise<{ message: string; meal_id: string }> => {
+async function deleteMeal(mealId: string): Promise<{ message: string; meal_id: string }> {
   const response = await httpClient.delete(`/meals/${mealId}`);
   return response.data;
+}
+
+export const mealService = {
+  createMeal,
+  getMyMeals,
+  getUserMeals,
+  getMeal,
+  updateMeal,
+  deleteMeal,
 };

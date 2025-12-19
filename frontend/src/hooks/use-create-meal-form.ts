@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { createMeal, getAuthToken } from "@/services";
+import { mealService, authService } from "@/services";
 import { useToast } from "@/hooks/use-toast";
 import { getErrorMessage } from "@/utils/error";
 import { Meal, User } from "@/types";
@@ -26,7 +26,7 @@ export function useCreateMealForm() {
   const [selectedMeal, setSelectedMeal] = useState<Meal | null>(null);
 
   useEffect(() => {
-    const token = getAuthToken();
+    const token = authService.getAuthToken();
     const user = localStorage.getItem("currentUser");
 
     if (!token || !user) {
@@ -84,7 +84,7 @@ export function useCreateMealForm() {
 
       try {
         // Check if user has a valid token
-        const token = getAuthToken();
+        const token = authService.getAuthToken();
         if (!token) {
           toast({
             title: "Authentication Required",
@@ -107,7 +107,7 @@ export function useCreateMealForm() {
           formDataToSend.append("image", image);
         }
 
-        const meal = await createMeal(formDataToSend);
+        const meal = await mealService.createMeal(formDataToSend);
 
         const user: User = JSON.parse(currentUser);
         analytics.mealCreated({ userId: user.id, meal });

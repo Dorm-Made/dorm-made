@@ -11,7 +11,7 @@ import { JoinEventDialog } from "./JoinEventDialog";
 import { RefundEventDialog } from "./RefundEventDialog";
 import { useNavigate } from "react-router-dom";
 import { useEditEvent } from "@/hooks/use-edit-event";
-import { deleteEvent, refundEvent } from "@/services";
+import { eventService } from "@/services";
 import { useToast } from "@/hooks/use-toast";
 import { getErrorMessage } from "@/utils/error";
 import { useState } from "react";
@@ -65,7 +65,7 @@ export function EventCard({
   const handleConfirmDelete = async () => {
     try {
       setIsDeleting(true);
-      await deleteEvent(event.id);
+      await eventService.deleteEvent(event.id);
 
       toast({
         title: "Success!",
@@ -121,7 +121,7 @@ export function EventCard({
   const handleConfirmRefund = async () => {
     try {
       setIsRefunding(true);
-      const result = await refundEvent(event.id);
+      const result = await eventService.refundEvent(event.id);
 
       toast({
         title: "Refund Successful!",

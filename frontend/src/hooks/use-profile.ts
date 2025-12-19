@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { getUser, updateUser, getUserEvents } from "@/services";
+import { userService, eventService } from "@/services";
 import { User, Event } from "@/types";
 import { useToast } from "@/hooks/use-toast";
 import { getErrorMessage } from "@/utils/error";
@@ -34,7 +34,7 @@ export function useProfile(userId?: string): UseProfileReturn {
   const loadUserEvents = useCallback(async (targetUserId: string) => {
     try {
       setLoadingEvents(true);
-      const events = await getUserEvents(targetUserId);
+      const events = await eventService.getUserEvents(targetUserId);
       setUserEvents(events);
     } catch (error) {
       console.error("Error loading user events:", getErrorMessage(error));
@@ -50,9 +50,7 @@ export function useProfile(userId?: string): UseProfileReturn {
 
       try {
         setLoading(true);
-        console.log("Loading user with ID:", targetUserId);
-        const userData = await getUser(targetUserId);
-        console.log("User data loaded:", userData);
+        const userData = await userService.getUser(targetUserId);
         setUser(userData);
         setEditingUser({ ...userData });
         await loadUserEvents(userData.id);
@@ -62,7 +60,6 @@ export function useProfile(userId?: string): UseProfileReturn {
           try {
             const currentUser = JSON.parse(currentUserStr);
             if (currentUser.id === targetUserId) {
-              console.log("Using user data from localStorage");
               setUser(currentUser);
               setEditingUser({ ...currentUser });
               await loadUserEvents(currentUser.id);
@@ -92,7 +89,7 @@ export function useProfile(userId?: string): UseProfileReturn {
 
       try {
         setSaving(true);
-        const updatedUser = await updateUser(targetUserId, {
+        const updatedUser = await userService.updateUser(targetUserId, {
           university: editingUser.university || null,
           description: editingUser.description || null,
           profile_picture: editingUser.profile_picture || null,

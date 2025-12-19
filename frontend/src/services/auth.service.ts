@@ -1,9 +1,31 @@
-import { httpClient, setAuthToken as setToken } from "./http-client";
+import {
+  httpClient,
+  setAuthToken as setToken,
+  getAuthToken as getToken,
+  removeAuthToken as removeToken,
+} from "./http-client";
 import { UserLogin, LoginResponse } from "@/types";
 
-export const loginUser = async (loginData: UserLogin): Promise<LoginResponse> => {
+async function loginUser(loginData: UserLogin): Promise<LoginResponse> {
   const response = await httpClient.post("/users/login", loginData);
   return response.data;
-};
+}
 
-export { setAuthToken as setToken, getAuthToken, removeAuthToken } from "./http-client";
+function setAuthToken(token: string): void {
+  setToken(token);
+}
+
+function getAuthToken(): string | null {
+  return getToken();
+}
+
+function removeAuthToken(): void {
+  removeToken();
+}
+
+export const authService = {
+  loginUser,
+  setAuthToken,
+  getAuthToken,
+  removeAuthToken,
+};

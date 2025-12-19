@@ -6,7 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useEvents } from "@/hooks/use-events";
 import { EventCard } from "@/components/events/EventCard";
 import { useToast } from "@/hooks/use-toast";
-import { getSessionStatus, getMeal } from "@/services";
+import { stripeService, mealService } from "@/services";
 import { analytics } from "@/lib/analytics";
 
 export default function Explore() {
@@ -41,7 +41,7 @@ export default function Explore() {
     if (sessionId) {
       const checkPaymentStatus = async () => {
         try {
-          const status = await getSessionStatus(sessionId);
+          const status = await stripeService.getSessionStatus(sessionId);
 
           if (status.status === "complete" && status.paymentStatus === "paid") {
             toast({
@@ -60,7 +60,7 @@ export default function Explore() {
                 const joinedEvent = joinedEvents.find(e => e.id === eventId);
 
                 if (joinedEvent) {
-                  const meal = await getMeal(joinedEvent.mealId);
+                  const meal = await mealService.getMeal(joinedEvent.mealId);
                   analytics.eventJoined({
                     userId: currentUser.id,
                     event: joinedEvent,

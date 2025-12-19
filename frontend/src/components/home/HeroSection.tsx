@@ -1,13 +1,13 @@
 import { Button } from "@/components/ui/button";
 import { Link, useNavigate } from "react-router-dom";
-import { getAuthToken } from "@/services";
+import { authService } from "@/services";
 import { Users, Utensils } from "lucide-react";
 
 export function HeroSection() {
   const navigate = useNavigate();
 
   const handleFindMeals = () => {
-    const token = getAuthToken();
+    const token = authService.getAuthToken();
     if (token) {
       navigate("/explore");
     } else {
@@ -16,7 +16,7 @@ export function HeroSection() {
   };
 
   const handleBecomeChef = () => {
-    const token = getAuthToken();
+    const token = authService.getAuthToken();
     if (token) {
       navigate("/create-event");
     } else {

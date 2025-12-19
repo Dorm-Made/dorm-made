@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from "react";
-import { initiateStripeConnect, getStripeStatus } from "@/services";
+import { stripeService } from "@/services";
 import { useToast } from "@/hooks/use-toast";
 import { getErrorMessage } from "@/utils/error";
 import { StripeStatusResponse } from "@/types";
@@ -25,7 +25,7 @@ export function useStripeConnect(autoCheck = true): UseStripeConnectReturn {
   const checkStatus = useCallback(async () => {
     try {
       setLoading(true);
-      const status = await getStripeStatus();
+      const status = await stripeService.getStripeStatus();
       setStripeStatus(status);
     } catch (error) {
       console.error("[useStripeConnect] Error checking status:", error);
@@ -46,7 +46,7 @@ export function useStripeConnect(autoCheck = true): UseStripeConnectReturn {
       const userStr = localStorage.getItem("currentUser");
       const currentUser = userStr ? JSON.parse(userStr) : null;
 
-      const response = await initiateStripeConnect();
+      const response = await stripeService.initiateStripeConnect();
 
       if (currentUser) {
         analytics.stripeOnboardingStarted(currentUser.id);

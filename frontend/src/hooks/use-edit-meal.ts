@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { updateMeal } from "@/services";
+import { mealService } from "@/services";
 import { Meal, MealUpdate } from "@/types";
 import { useToast } from "@/hooks/use-toast";
 import { getErrorMessage } from "@/utils/error";
@@ -28,7 +28,7 @@ export function useEditMeal(onSuccess?: () => void): UseEditMealReturn {
   const updateMealData = async (mealId: string, updates: MealUpdate): Promise<Meal | null> => {
     try {
       setLoading(true);
-      const updatedMeal = await updateMeal(mealId, updates);
+      const updatedMeal = await mealService.updateMeal(mealId, updates);
 
       toast({
         title: "Success!",

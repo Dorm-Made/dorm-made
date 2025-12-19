@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from "react";
 import { Meal } from "@/types";
-import { getMyMeals } from "@/services";
+import { mealService } from "@/services";
 import { useToast } from "@/hooks/use-toast";
 import { getErrorMessage } from "@/utils/error";
 import { isAxiosError } from "axios";
@@ -14,7 +14,7 @@ export function useMeals() {
   const fetchMeals = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await getMyMeals();
+      const data = await mealService.getMyMeals();
       setMeals(data);
     } catch (error) {
       console.error("Error fetching meals:", error);

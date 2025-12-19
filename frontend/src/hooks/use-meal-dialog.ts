@@ -1,6 +1,6 @@
 import { useState, useCallback } from "react";
 import { Meal } from "@/types";
-import { getMeal } from "@/services";
+import { mealService } from "@/services";
 
 export function useMealDialog() {
   const [isOpen, setIsOpen] = useState(false);
@@ -14,7 +14,7 @@ export function useMealDialog() {
     setError(null);
 
     try {
-      const mealData = await getMeal(mealId);
+      const mealData = await mealService.getMeal(mealId);
       setMeal(mealData);
     } catch (err) {
       console.error("Error fetching meal:", err);

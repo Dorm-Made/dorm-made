@@ -6,7 +6,7 @@ import { MealDialog } from "./MealDialog";
 import { EditMealDialog } from "./EditMealDialog";
 import { DeleteMealDialog } from "./DeleteMealDialog";
 import { useEditMeal } from "@/hooks/use-edit-meal";
-import { deleteMeal } from "@/services";
+import { mealService } from "@/services";
 import { useToast } from "@/hooks/use-toast";
 import { getErrorMessage } from "@/utils/error";
 import { useState } from "react";
@@ -82,7 +82,7 @@ export function MealCard({
   const handleConfirmDelete = async () => {
     try {
       setIsDeleting(true);
-      await deleteMeal(meal.id);
+      await mealService.deleteMeal(meal.id);
 
       toast({
         title: "Success!",

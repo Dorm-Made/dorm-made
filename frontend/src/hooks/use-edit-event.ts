@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { updateEvent } from "@/services";
+import { eventService } from "@/services";
 import { Event, EventUpdate } from "@/types";
 import { useToast } from "@/hooks/use-toast";
 import { getErrorMessage } from "@/utils/error";
@@ -28,7 +28,7 @@ export function useEditEvent(onSuccess?: () => void): UseEditEventReturn {
   const updateEventData = async (eventId: string, updates: EventUpdate): Promise<Event | null> => {
     try {
       setLoading(true);
-      const updatedEvent = await updateEvent(eventId, updates);
+      const updatedEvent = await eventService.updateEvent(eventId, updates);
 
       toast({
         title: "Success!",

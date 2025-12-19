@@ -10,7 +10,7 @@ import { EmbeddedCheckoutProvider, EmbeddedCheckout } from "@stripe/react-stripe
 import { Event } from "@/types";
 import { useCallback, useState } from "react";
 import { formatDate } from "@/lib/utils";
-import { createCheckoutSession } from "@/services";
+import { stripeService } from "@/services";
 
 interface JoinEventDialogProps {
   event: Event;
@@ -25,8 +25,8 @@ export function JoinEventDialog({ event, isOpen, onClose }: JoinEventDialogProps
 
   const fetchClientSecret = useCallback(async () => {
     try {
-      sessionStorage.setItem('pendingEventJoin', JSON.stringify({ eventId: event.id }));
-      const response = await createCheckoutSession(event.id);
+      sessionStorage.setItem("pendingEventJoin", JSON.stringify({ eventId: event.id }));
+      const response = await stripeService.createCheckoutSession(event.id);
       return response.clientSecret;
     } catch (err: any) {
       const errorMessage = err.response?.data?.detail || "Failed to create checkout session";

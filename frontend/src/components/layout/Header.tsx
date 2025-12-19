@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 import { User, CalendarPlus, CalendarSearch, Menu, X } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useState, useEffect } from "react";
-import { removeAuthToken, getAuthToken } from "@/services";
+import { authService } from "@/services";
 import { analytics } from "@/lib/analytics";
 
 export function Header() {
@@ -12,7 +12,7 @@ export function Header() {
   useEffect(() => {
     const checkAuth = () => {
       const user = localStorage.getItem("currentUser");
-      const token = getAuthToken();
+      const token = authService.getAuthToken();
 
       if (user && token && user !== "undefined") {
         try {
@@ -40,7 +40,7 @@ export function Header() {
   const handleLogout = () => {
     localStorage.removeItem("currentUser");
     localStorage.removeItem("userEmail");
-    removeAuthToken();
+    authService.removeAuthToken();
     setCurrentUser(null);
     setMobileMenuOpen(false);
     analytics.reset();

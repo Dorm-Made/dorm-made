@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback } from "react";
-import { uploadProfilePicture, getAuthToken } from "@/services";
+import { userService, authService } from "@/services";
 import { User } from "@/types";
 import { useToast } from "@/hooks/use-toast";
 import { isAxiosError } from "axios";
@@ -24,18 +24,9 @@ export function useProfilePhoto(onPhotoUploaded?: (user: User) => void): UseProf
     async (file: File, userId: string): Promise<void> => {
       if (!userId) return;
 
-      console.log("[DEBUG PROFILE] Upload iniciado:", {
-        userId,
-        file: file.name,
-        fileSize: file.size,
-        fileType: file.type,
-        apiBaseURL: import.meta.env.VITE_API_URL || "https://dorm-made-production.up.railway.app",
-        token: getAuthToken() ? "Present" : "Missing",
-      });
-
       try {
         setUploadingPhoto(true);
-        const updatedUser = await uploadProfilePicture(userId, file);
+        const updatedUser = await userService.uploadProfilePicture(userId, file);
 
         // Update localStorage
         localStorage.setItem("currentUser", JSON.stringify(updatedUser));

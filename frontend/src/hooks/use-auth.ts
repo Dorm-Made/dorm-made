@@ -1,6 +1,6 @@
 import { useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { createUser, loginUser, setAuthToken } from "@/services";
+import { userService, authService } from "@/services";
 import { useToast } from "@/hooks/use-toast";
 import { getErrorMessage } from "@/utils/error";
 import { analytics } from "@/lib/analytics";
@@ -51,7 +51,7 @@ export function useAuth(): UseAuthReturn {
           password: data.password,
         };
 
-        const user = await createUser(userData);
+        const user = await userService.createUser(userData);
 
         analytics.userSignedUp(user.id);
 
@@ -92,12 +92,12 @@ export function useAuth(): UseAuthReturn {
       setLoading(true);
 
       try {
-        const loginResponse = await loginUser({
+        const loginResponse = await authService.loginUser({
           email: data.email,
           password: data.password,
         });
 
-        setAuthToken(loginResponse.access_token);
+        authService.setAuthToken(loginResponse.access_token);
 
         localStorage.setItem("currentUser", JSON.stringify(loginResponse.user));
         localStorage.setItem("userEmail", loginResponse.user.email);

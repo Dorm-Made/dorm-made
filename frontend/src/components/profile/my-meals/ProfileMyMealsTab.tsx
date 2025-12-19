@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { MealCard } from "@/components/meals/MealCard";
 import { Meal } from "@/types";
-import { getUserMeals } from "@/services";
+import { mealService } from "@/services";
 
 interface ProfileMyMealsTabProps {
   userId: string;
@@ -18,7 +18,7 @@ export function ProfileMyMealsTab({ userId, isOwnProfile, userName }: ProfileMyM
   const fetchUserMeals = async () => {
     setLoading(true);
     try {
-      const data = await getUserMeals(userId);
+      const data = await mealService.getUserMeals(userId);
       setMeals(data);
     } catch (error) {
       console.error("Error fetching user meals:", error);
