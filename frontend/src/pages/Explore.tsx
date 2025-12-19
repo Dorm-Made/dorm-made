@@ -6,21 +6,15 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useEvents } from "@/hooks/use-events";
 import { EventCard } from "@/components/events/EventCard";
 import { useToast } from "@/hooks/use-toast";
-import { getSessionStatus } from "@/services";
+import { getSessionStatus, getMeal } from "@/services";
+import { analytics } from "@/lib/analytics";
 
 export default function Explore() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState("all");
   const [currentUser, setCurrentUser] = useState<any>(null);
   const { toast } = useToast();
-  const {
-    allEvents,
-    myEvents,
-    joinedEvents,
-    loading,
-    refreshAllData,
-    joinEvent: handleJoinEvent,
-  } = useEvents();
+  const { allEvents, myEvents, joinedEvents, loading, refreshAllData } = useEvents();
 
   const isEventJoinedByUser = (eventId: string) => {
     return joinedEvents.some((joinedEvent) => joinedEvent.id === eventId);
@@ -58,6 +52,26 @@ export default function Explore() {
             });
             setActiveTab("joined");
             await refreshAllData();
+
+            const pendingJoinStr = sessionStorage.getItem('pendingEventJoin');
+            if (pendingJoinStr && currentUser) {
+              try {
+                const { eventId } = JSON.parse(pendingJoinStr);
+                const joinedEvent = joinedEvents.find(e => e.id === eventId);
+
+                if (joinedEvent) {
+                  const meal = await getMeal(joinedEvent.mealId);
+                  analytics.eventJoined({
+                    userId: currentUser.id,
+                    event: joinedEvent,
+                    meal,
+                  });
+                }
+                sessionStorage.removeItem('pendingEventJoin');
+              } catch (err) {
+                console.error("Error tracking event join:", err);
+              }
+            }
           } else {
             toast({
               title: "Payment incomplete",
@@ -75,13 +89,14 @@ export default function Explore() {
             duration: 5000,
           });
         } finally {
+          sessionStorage.removeItem('pendingEventJoin');
           setSearchParams({});
         }
       };
 
       checkPaymentStatus();
     }
-  }, [searchParams, setSearchParams, toast, refreshAllData]);
+  }, [searchParams, setSearchParams, toast, refreshAllData, currentUser, joinedEvents]);
 
   if (loading) {
     return (
@@ -135,8 +150,6 @@ export default function Explore() {
                   <EventCard
                     key={event.id}
                     event={event}
-                    activeTab={activeTab}
-                    onJoinEvent={handleJoinEvent}
                     onEventUpdated={refreshAllData}
                     isJoinedByUser={isEventJoinedByUser(event.id)}
                   />
@@ -159,8 +172,6 @@ export default function Explore() {
                   <EventCard
                     key={event.id}
                     event={event}
-                    activeTab={activeTab}
-                    onJoinEvent={handleJoinEvent}
                     onEventUpdated={refreshAllData}
                     isJoinedByUser={isEventJoinedByUser(event.id)}
                   />
@@ -181,8 +192,6 @@ export default function Explore() {
                   <EventCard
                     key={event.id}
                     event={event}
-                    activeTab={activeTab}
-                    onJoinEvent={handleJoinEvent}
                     onEventUpdated={refreshAllData}
                     isJoinedByUser={true}
                   />

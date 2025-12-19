@@ -13,7 +13,6 @@ interface UseEventsReturn {
   loadAllEvents: () => Promise<void>;
   loadMyEvents: () => Promise<void>;
   loadJoinedEvents: () => Promise<void>;
-  joinEvent: (eventId: string) => Promise<void>;
   refreshAllData: () => Promise<void>;
 }
 
@@ -79,50 +78,6 @@ export function useEvents(): UseEventsReturn {
     }
   }, [loadAllEvents, loadMyEvents, loadJoinedEvents]);
 
-  const joinEvent = useCallback(
-    async (eventId: string) => {
-      const user = JSON.parse(localStorage.getItem("currentUser"));
-
-      if (!user) {
-        console.log(localStorage.getItem("userId"));
-        toast({
-          title: "Authentication Required",
-          description: "Please log in to join events.",
-          variant: "destructive",
-          duration: 1500,
-        });
-        return;
-      }
-
-      try {
-        setLoading(true);
-        await joinEventApi({ event_id: eventId });
-
-        toast({
-          title: "Success",
-          description: "You have successfully joined the event!",
-          duration: 1500,
-        });
-
-        // Refresh all event lists to reflect the change
-        await refreshAllData();
-      } catch (err) {
-        toast({
-          title: "Error",
-          description: getErrorMessage(err, "Failed to join event"),
-          variant: "destructive",
-          duration: 3000,
-        });
-
-        console.error("Error joining event:", err);
-        throw err;
-      } finally {
-        setLoading(false);
-      }
-    },
-    [toast, refreshAllData],
-  );
-
   return {
     allEvents,
     myEvents,
@@ -132,7 +87,6 @@ export function useEvents(): UseEventsReturn {
     loadAllEvents,
     loadMyEvents,
     loadJoinedEvents,
-    joinEvent,
     refreshAllData,
   };
 }

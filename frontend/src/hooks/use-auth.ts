@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { createUser, loginUser, setAuthToken } from "@/services";
 import { useToast } from "@/hooks/use-toast";
 import { getErrorMessage } from "@/utils/error";
+import { analytics } from "@/lib/analytics";
 
 interface SignUpFormData {
   firstName: string;
@@ -50,7 +51,9 @@ export function useAuth(): UseAuthReturn {
           password: data.password,
         };
 
-        await createUser(userData);
+        const user = await createUser(userData);
+
+        analytics.userSignedUp(user.id);
 
         toast({
           title: "Success!",
@@ -98,6 +101,8 @@ export function useAuth(): UseAuthReturn {
 
         localStorage.setItem("currentUser", JSON.stringify(loginResponse.user));
         localStorage.setItem("userEmail", loginResponse.user.email);
+
+        analytics.userLoggedIn(loginResponse.user.id);
 
         window.dispatchEvent(new CustomEvent("userLogin"));
 

@@ -3,7 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { createMeal, getAuthToken } from "@/services";
 import { useToast } from "@/hooks/use-toast";
 import { getErrorMessage } from "@/utils/error";
-import { Meal } from "@/types";
+import { Meal, User } from "@/types";
+import { analytics } from "@/lib/analytics";
 
 export interface MealFormData {
   name: string;
@@ -106,7 +107,10 @@ export function useCreateMealForm() {
           formDataToSend.append("image", image);
         }
 
-        await createMeal(formDataToSend);
+        const meal = await createMeal(formDataToSend);
+
+        const user: User = JSON.parse(currentUser);
+        analytics.mealCreated({ userId: user.id, meal });
 
         toast({
           title: "Success!",

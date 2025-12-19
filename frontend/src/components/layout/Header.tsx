@@ -3,6 +3,7 @@ import { User, CalendarPlus, CalendarSearch, Menu, X } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { removeAuthToken, getAuthToken } from "@/services";
+import { analytics } from "@/lib/analytics";
 
 export function Header() {
   const [currentUser, setCurrentUser] = useState<any>(null);
@@ -42,6 +43,7 @@ export function Header() {
     removeAuthToken();
     setCurrentUser(null);
     setMobileMenuOpen(false);
+    analytics.reset();
     window.location.href = "/";
   };
 

@@ -12,6 +12,7 @@ import { useProfile } from "@/hooks/use-profile";
 import { useProfilePhoto } from "@/hooks/use-profile-photo";
 import { useToast } from "@/hooks/use-toast";
 import { ProfileTabs } from "@/components/profile/ProfileTabs";
+import { analytics } from "@/lib/analytics";
 import {
   GraduationCap,
   User as UserIcon,
@@ -61,6 +62,16 @@ export default function Profile() {
         className: "bg-green-500 text-white border-green-600",
         duration: 3000,
       });
+
+      const userStr = localStorage.getItem("currentUser");
+      if (userStr) {
+        try {
+          const currentUser = JSON.parse(userStr);
+          analytics.stripeOnboardingCompleted(currentUser.id);
+        } catch (err) {
+          console.error("Error tracking stripe onboarding completion:", err);
+        }
+      }
 
       const tabParam = searchParams.get("tab");
       if (tabParam) {

@@ -3,6 +3,7 @@ import { initiateStripeConnect, getStripeStatus } from "@/services";
 import { useToast } from "@/hooks/use-toast";
 import { getErrorMessage } from "@/utils/error";
 import { StripeStatusResponse } from "@/types";
+import { analytics } from "@/lib/analytics";
 
 interface UseStripeConnectReturn {
   stripeStatus: StripeStatusResponse | null;
@@ -42,7 +43,15 @@ export function useStripeConnect(autoCheck = true): UseStripeConnectReturn {
   const startOnboarding = useCallback(async () => {
     try {
       setConnecting(true);
+      const userStr = localStorage.getItem("currentUser");
+      const currentUser = userStr ? JSON.parse(userStr) : null;
+
       const response = await initiateStripeConnect();
+
+      if (currentUser) {
+        analytics.stripeOnboardingStarted(currentUser.id);
+      }
+
       window.location.href = response.onboarding_url;
     } catch (error) {
       console.error("[useStripeConnect] Error starting onboarding:", error);

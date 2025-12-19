@@ -25,6 +25,7 @@ export function JoinEventDialog({ event, isOpen, onClose }: JoinEventDialogProps
 
   const fetchClientSecret = useCallback(async () => {
     try {
+      sessionStorage.setItem('pendingEventJoin', JSON.stringify({ eventId: event.id }));
       const response = await createCheckoutSession(event.id);
       return response.clientSecret;
     } catch (err: any) {

@@ -17,6 +17,8 @@ import { useToast } from "@/hooks/use-toast";
 import { useStripeConnect } from "@/hooks/use-stripe-connect";
 import { createEvent, getAuthToken } from "@/services";
 import { getPriceInCents } from "@/utils/price";
+import { User } from "@/types";
+import { analytics } from "@/lib/analytics";
 
 export default function CreateEvent() {
   const [loading, setLoading] = useState(false);
@@ -97,7 +99,13 @@ export default function CreateEvent() {
       }
 
       const payload = buildPayload();
-      await createEvent(payload);
+      const event = await createEvent(payload);
+
+      const currentUser = localStorage.getItem("currentUser");
+      if (currentUser) {
+        const user: User = JSON.parse(currentUser);
+        analytics.eventCreated({ userId: user.id, event, meal: selectedMeal! });
+      }
 
       toast({
         title: "Success!",

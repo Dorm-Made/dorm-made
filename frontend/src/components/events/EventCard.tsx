@@ -18,8 +18,6 @@ import { useState } from "react";
 
 interface EventCardProps {
   event: Event;
-  activeTab: string;
-  onJoinEvent?: (eventId: string) => void;
   onEventUpdated?: () => void;
   showActions?: boolean;
   isJoinedByUser?: boolean;
@@ -27,8 +25,6 @@ interface EventCardProps {
 
 export function EventCard({
   event,
-  activeTab,
-  onJoinEvent,
   onEventUpdated,
   showActions = true,
   isJoinedByUser = false,
@@ -242,11 +238,7 @@ export function EventCard({
           {!isHost && (
             <>
               {isJoinedByUser ? (
-                <Button
-                  className="mx-4 mt-8"
-                  variant="destructive"
-                  onClick={handleRefundClick}
-                >
+                <Button className="mx-4 mt-8" variant="destructive" onClick={handleRefundClick}>
                   Cancel Participation
                 </Button>
               ) : (
@@ -288,11 +280,7 @@ export function EventCard({
         hasParticipants={event.currentParticipants > 0}
       />
 
-      <JoinEventDialog
-        isOpen={isJoinDialogOpen}
-        onClose={handleCloseJoinDialog}
-        event={event}
-      />
+      <JoinEventDialog isOpen={isJoinDialogOpen} onClose={handleCloseJoinDialog} event={event} />
 
       <RefundEventDialog
         isOpen={isRefundDialogOpen}
