@@ -11,7 +11,7 @@ from alembic import command
 from contextlib import asynccontextmanager
 
 from routers import users, events, meals, checkout
-from routers.gateways.stripe import webhook
+from routers.gateways.stripe import webhook, connect_webhook
 
 import sentry_sdk
 
@@ -19,8 +19,8 @@ load_dotenv()
 
 logging.basicConfig(
     level=logging.INFO,
-    format='[%(levelname)s] %(name)s - %(message)s',
-    stream=sys.stdout
+    format="[%(levelname)s] %(name)s - %(message)s",
+    stream=sys.stdout,
 )
 
 logger = logging.getLogger(__name__)
@@ -90,6 +90,7 @@ app.include_router(events.router)
 app.include_router(meals.router)
 app.include_router(checkout.router)
 app.include_router(webhook.router)
+app.include_router(connect_webhook.router)
 
 
 @app.get("/")
