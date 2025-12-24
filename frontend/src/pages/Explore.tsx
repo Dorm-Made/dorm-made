@@ -53,11 +53,11 @@ export default function Explore() {
             setActiveTab("joined");
             await refreshAllData();
 
-            const pendingJoinStr = sessionStorage.getItem('pendingEventJoin');
+            const pendingJoinStr = sessionStorage.getItem("pendingEventJoin");
             if (pendingJoinStr && currentUser) {
               try {
                 const { eventId } = JSON.parse(pendingJoinStr);
-                const joinedEvent = joinedEvents.find(e => e.id === eventId);
+                const joinedEvent = joinedEvents.find((e) => e.id === eventId);
 
                 if (joinedEvent) {
                   const meal = await mealService.getMeal(joinedEvent.mealId);
@@ -67,7 +67,7 @@ export default function Explore() {
                     meal,
                   });
                 }
-                sessionStorage.removeItem('pendingEventJoin');
+                sessionStorage.removeItem("pendingEventJoin");
               } catch (err) {
                 console.error("Error tracking event join:", err);
               }
@@ -89,7 +89,7 @@ export default function Explore() {
             duration: 5000,
           });
         } finally {
-          sessionStorage.removeItem('pendingEventJoin');
+          sessionStorage.removeItem("pendingEventJoin");
           setSearchParams({});
         }
       };
@@ -183,7 +183,7 @@ export default function Explore() {
           <TabsContent value="joined">
             <div className="flex overflow-x-auto gap-4 pb-4 lg:grid lg:grid-cols-3 lg:gap-6 lg:overflow-visible">
               {joinedEvents.length === 0 ? (
-                <div className="col-span-full text-center py-12">
+                <div className="col-span-full text-center py-12 w-full">
                   <h3 className="text-lg font-semibold mb-2">No joined events yet</h3>
                   <p className="text-muted-foreground">Join some events to see them here!</p>
                 </div>
