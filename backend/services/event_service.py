@@ -1,5 +1,6 @@
 from fastapi import HTTPException, UploadFile
 from typing import List, Optional, Dict, Any, Tuple
+from sqlalchemy import desc
 from sqlalchemy.orm import Session
 from datetime import datetime, timezone
 import uuid
@@ -177,6 +178,10 @@ async def validate_checkout_requirements(
         logger.warning(f"Host {foodie_id} attempted to join their own event {event_id}")
         raise HTTPException(status_code=400, detail="Host cannot join their own event")
 
+    if event.event_date <= datetime.now():
+        logger.warning(f"User {foodie_id} tried to join a past event")
+        raise HTTPException(status_code=400, detail="Cannot join a past event")
+
     existing_participation = (
         db.query(EventParticipantModel)
         .filter(
@@ -229,7 +234,12 @@ async def validate_checkout_requirements(
 async def list_events(db: Session) -> List[Event]:
     """List all available events (excluding deleted ones)"""
     try:
-        event_models = db.query(EventModel).filter(EventModel.is_deleted == False).all()
+        event_models = (
+            db.query(EventModel)
+            .filter(EventModel.is_deleted == False)
+            .order_by(desc(EventModel.event_date))
+            .all()
+        )
         # Convert each event with its meal name
         events = []
         for event_model in event_models:
@@ -269,6 +279,7 @@ async def get_user_events(user_id: str, db: Session) -> List[Event]:
         event_models = (
             db.query(EventModel)
             .filter(EventModel.host_user_id == user_id, EventModel.is_deleted == False)
+            .order_by(desc(EventModel.event_date))
             .all()
         )
         # Convert each event with its meal name
@@ -305,6 +316,7 @@ async def get_user_joined_events(user_id: str, db: Session) -> List[Event]:
         event_models = (
             db.query(EventModel)
             .filter(EventModel.id.in_(event_ids), EventModel.is_deleted == False)
+            .order_by(desc(EventModel.event_date))
             .all()
         )
         # Convert each event with its meal name
