@@ -1,8 +1,8 @@
 import { EventFormData } from "@/hooks/use-create-event-form";
 import { Meal } from "@/types";
-import { Calendar, MapPin, Users, DollarSign, ChefHat } from "lucide-react";
+import { Calendar, MapPin, Users, Banknote, ChefHat } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { formatPriceForDisplay } from "@/utils/price";
+import { formatPriceForDisplay, getCurrencySymbol } from "@/utils/price";
 
 interface EventSummaryProps {
   selectedMeal: Meal | null;
@@ -10,11 +10,7 @@ interface EventSummaryProps {
   imagePreview: string | null;
 }
 
-export default function EventSummary({
-  selectedMeal,
-  formData,
-  imagePreview,
-}: EventSummaryProps) {
+export default function EventSummary({ selectedMeal, formData, imagePreview }: EventSummaryProps) {
   const formatDate = (dateString: string) => {
     if (!dateString) return "Not set";
     const date = new Date(dateString);
@@ -40,11 +36,7 @@ export default function EventSummary({
       {/* Event Image */}
       {imagePreview && (
         <div className="rounded-lg overflow-hidden">
-          <img
-            src={imagePreview}
-            alt="Event preview"
-            className="w-full h-64 object-cover"
-          />
+          <img src={imagePreview} alt="Event preview" className="w-full h-64 object-cover" />
         </div>
       )}
 
@@ -112,9 +104,11 @@ export default function EventSummary({
             </div>
 
             <div className="flex items-center gap-2">
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
+              <Banknote className="h-4 w-4 text-muted-foreground" />
               <span className="text-sm">
-                ${formatPriceForDisplay(formData.price || "0")} per participant
+                {getCurrencySymbol(formData.currency) +
+                  formatPriceForDisplay(formData.price || "0")}{" "}
+                per participant
               </span>
             </div>
           </div>

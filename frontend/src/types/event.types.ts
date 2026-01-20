@@ -11,6 +11,7 @@ export interface Event {
   location: string;
   imageUrl?: string;
   price: number;
+  currency: string;
   createdAt: string;
 }
 
@@ -21,6 +22,7 @@ export interface EventCreate {
   eventDate: string;
   location: string;
   price: number;
+  currency: string;
 }
 
 export interface EventUpdate {
@@ -30,6 +32,7 @@ export interface EventUpdate {
   location?: string;
   eventDate?: string;
   price?: number;
+  currency?: string;
 }
 
 export interface JoinEventRequest {
@@ -39,4 +42,11 @@ export interface JoinEventRequest {
 export interface RefundResponse {
   refund_amount_cents: number;
   message: string;
+}
+
+export interface EventParticipant {
+  id: string;
+  name: string;
+  profile_picture?: string | null;
+  status: string;
 }

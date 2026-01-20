@@ -2,7 +2,6 @@ from sqlalchemy import (
     Column,
     String,
     Integer,
-    Float,
     DateTime,
     ForeignKey,
     Text,
@@ -36,6 +35,7 @@ class EventModel(Base):
     image_url = Column(String, nullable=True)
     price = Column(INTEGER, nullable=False)
     is_deleted = Column(Boolean, default=True, nullable=False)
+    currency = Column(Text, default="usd", server_default="usd", nullable=False)
     created_at = Column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

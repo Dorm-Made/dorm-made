@@ -11,12 +11,13 @@ from models.event import EventModel
 from models.event_participant import EventParticipantModel
 from models.user import UserModel
 from schemas.event import Event, EventCreate, EventUpdate
-from schemas.event_participant import EventParticipant
+from schemas.event_participant import EventParticipant, EventParticipantUser
 from schemas.refund import RefundResponse
 from utils.converters import event_model_to_schema, event_participant_models_to_schemas
 from utils.supabase import supabase
 from .user_service import get_user
 from .meal_service import get_meal_name
+from .gateways.stripe_service import capture_payment_intent
 from .gateways.stripe_service import retrieve_connected_account
 
 logger = logging.getLogger(__name__)
@@ -138,6 +139,7 @@ async def create_event(
             event_date=event_date,
             image_url=image_url,
             price=event.price,
+            currency=event.currency,
             is_deleted=False,
         )
 
@@ -178,7 +180,7 @@ async def validate_checkout_requirements(
         logger.warning(f"Host {foodie_id} attempted to join their own event {event_id}")
         raise HTTPException(status_code=400, detail="Host cannot join their own event")
 
-    if event.event_date <= datetime.now():
+    if event.event_date <= datetime.now(timezone.utc):
         logger.warning(f"User {foodie_id} tried to join a past event")
         raise HTTPException(status_code=400, detail="Cannot join a past event")
 
@@ -258,15 +260,29 @@ async def get_event_details(event_id: str, db: Session) -> Event:
     return event
 
 
-async def get_event_participants(event_id: str, db: Session) -> List[EventParticipant]:
-    """Get all participants for an event"""
+async def get_event_participants(
+    event_id: str, db: Session
+) -> List[EventParticipantUser]:
+    """Get all participants for an event with their participation status"""
     try:
-        participant_models = (
-            db.query(EventParticipantModel)
+        results = (
+            db.query(UserModel, EventParticipantModel.status)
+            .join(
+                EventParticipantModel,
+                UserModel.id == EventParticipantModel.participant_id,
+            )
             .filter(EventParticipantModel.event_id == event_id)
             .all()
         )
-        return event_participant_models_to_schemas(participant_models)
+        return [
+            EventParticipantUser(
+                id=str(user.id),
+                name=user.name,
+                profile_picture=user.profile_picture,
+                status=status,
+            )
+            for user, status in results
+        ]
     except Exception as e:
         raise HTTPException(
             status_code=400, detail=f"Error fetching participants: {str(e)}"
@@ -541,3 +557,37 @@ async def refund_event_participation(
             exc_info=True,
         )
         raise HTTPException(status_code=500, detail="Refund failed")
+
+
+async def accept_user_participation(
+    host_id: str, user_id: str, event_id: str, db: Session
+):
+    try:
+        event_model = (
+            db.query(EventModel)
+            .filter(EventModel.id == event_id, EventModel.is_deleted == False)
+            .first()
+        )
+
+        if not event_model:
+            raise HTTPException(status_code=404, detail="Event not found")
+
+        if host_id != event_model.host_user_id:
+            raise HTTPException(status_code=400, detail="User is not host")
+
+        existing_participation = (
+            db.query(EventParticipantModel)
+            .filter(
+                EventParticipantModel.event_id == event_id,
+                EventParticipantModel.participant_id == user_id,
+                EventParticipantModel.status == "booked",
+            )
+            .first()
+        )
+        existing_participation.status = "confirmed"
+        await capture_payment_intent(existing_participation.payment_intent_id)
+        db.commit()
+    except Exception as e:
+        raise HTTPException(
+            status_code=400, detail=f"Error accepting user participation: {str(e)}"
+        )

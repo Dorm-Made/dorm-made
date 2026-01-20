@@ -44,6 +44,7 @@ def event_model_to_schema(event_model: EventModel, meal_name: str = "") -> Event
         event_date=event_model.event_date,
         image_url=event_model.image_url,
         price=event_model.price,
+        currency=event_model.currency,
         created_at=event_model.created_at,
     )
 

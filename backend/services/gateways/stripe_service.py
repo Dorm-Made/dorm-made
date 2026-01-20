@@ -105,6 +105,7 @@ async def create_checkout_session(
     chef_stripe_account_id: str,
     foodie_id: str,
     chef_id: str,
+    currency: str,
 ) -> Dict[str, Any]:
     try:
         chef_amount = (price_cents * 84) // 100
@@ -116,7 +117,7 @@ async def create_checkout_session(
             line_items=[
                 {
                     "price_data": {
-                        "currency": "usd",
+                        "currency": currency,
                         "product_data": {
                             "name": event_title,
                             "description": event_description,
@@ -127,6 +128,7 @@ async def create_checkout_session(
                 }
             ],
             payment_intent_data={
+                "capture_method": "manual",
                 "transfer_data": {
                     "destination": chef_stripe_account_id,
                     "amount": chef_amount,
@@ -169,3 +171,7 @@ async def retrieve_connected_account(stripe_account_id: str) -> Dict[str, Any]:
 async def generate_login_link(stripe_account_id: str) -> str:
     login_link = await stripe.Account.create_login_link_async(stripe_account_id)
     return login_link.url
+
+
+async def capture_payment_intent(payment_intent_id: str):
+    await stripe.PaymentIntent.capture_async(payment_intent_id)

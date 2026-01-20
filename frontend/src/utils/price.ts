@@ -1,3 +1,16 @@
+export const CURRENCIES = [
+  { value: "usd", symbol: "$" },
+  { value: "eur", symbol: "€" },
+  { value: "gbp", symbol: "£" },
+] as const;
+
+export type CurrencyCode = (typeof CURRENCIES)[number]["value"];
+
+export function getCurrencySymbol(currency: string): string {
+  const found = CURRENCIES.find((c) => c.value === currency);
+  return found?.symbol ?? "$";
+}
+
 export function formatCentsAsDollars(cents: number): string {
   const dollars = cents / 100;
   return dollars.toFixed(2);

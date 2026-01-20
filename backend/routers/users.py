@@ -109,14 +109,6 @@ async def login_endpoint(login_data: UserLogin, db: Session = Depends(get_db)):
     return await user_service.authenticate_user(login_data, db)
 
 
-@router.get("/search", response_model=List[User])
-async def search_users_endpoint(
-    query: str, limit: int = 10, db: Session = Depends(get_db)
-):
-    """Search users by name"""
-    return await user_service.search_users(query, db, limit)
-
-
 @router.post("/{user_id}/profile-picture", response_model=User)
 async def upload_profile_picture_endpoint(
     user_id: str,

@@ -131,27 +131,6 @@ async def update_user(user_id: str, user_update: UserUpdate, db: Session) -> Use
         raise HTTPException(status_code=400, detail=f"Error updating user: {str(e)}")
 
 
-async def search_users(query: str, db: Session, limit: int = 10) -> List[User]:
-    """Search users by name"""
-    try:
-        if not query or len(query.strip()) < 2:
-            return []
-
-        # Use ilike for case-insensitive search
-        user_models = (
-            db.query(UserModel)
-            .filter(UserModel.name.ilike(f"%{query.strip()}%"))
-            .limit(limit)
-            .all()
-        )
-
-        logger.info(f"User search for '{query}' returned {len(user_models)} results")
-        return user_models_to_schemas(user_models)
-    except Exception as e:
-        logger.error(f"Error searching users with query '{query}': {e}", exc_info=True)
-        raise HTTPException(status_code=400, detail=f"Error searching users: {str(e)}")
-
-
 async def upload_profile_picture(user_id: str, image: UploadFile, db: Session) -> User:
     """Upload a profile picture to Supabase Storage and update user profile"""
     try:

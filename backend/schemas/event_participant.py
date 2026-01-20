@@ -22,3 +22,15 @@ class EventParticipant(EventParticipantBase):
     model_config = ConfigDict(
         from_attributes=True, json_encoders={datetime: lambda v: v.isoformat()}
     )
+
+
+class AcceptParticipationRequest(BaseModel):
+    event_id: str
+    user_id: str
+
+
+class EventParticipantUser(BaseModel):
+    id: str
+    name: str
+    profile_picture: Optional[str] = None
+    status: str

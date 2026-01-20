@@ -21,17 +21,11 @@ class EventParticipantModel(Base):
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
     payment_intent_id = Column(Text, nullable=True, index=True)
-    status = Column(
-        String,
-        nullable=False,
-        default='confirmed',
-        server_default='confirmed'
-    )
+    status = Column(String, nullable=False, default="booked", server_default="booked")
     refunded_at = Column(DateTime(timezone=True), nullable=True)
 
     __table_args__ = (
         CheckConstraint(
-            "status IN ('confirmed', 'cancelled')",
-            name='valid_status'
+            "status IN ('confirmed', 'cancelled', 'booked')", name="valid_status"
         ),
     )

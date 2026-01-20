@@ -3,7 +3,11 @@ from typing import List, Annotated, Optional
 from sqlalchemy.orm import Session
 
 from schemas.event import Event, EventCreate, EventUpdate
-from schemas.event_participant import EventParticipant
+from schemas.event_participant import (
+    EventParticipant,
+    AcceptParticipationRequest,
+    EventParticipantUser,
+)
 from schemas.checkout import CreateCheckoutSessionResponse
 from schemas.refund import RefundResponse
 from utils.auth import get_current_user_id
@@ -40,6 +44,7 @@ async def create_event_endpoint(
     location: Annotated[str, Form()],
     event_date: Annotated[str, Form()],
     meal_id: Annotated[str, Form()],
+    currency: Annotated[str, Form()],
     current_user_id: Annotated[str, Depends(get_current_user_id)],
     db: Session = Depends(get_db),
     price: Annotated[Optional[str], Form()] = None,
@@ -63,6 +68,7 @@ async def create_event_endpoint(
         location=location,
         event_date=event_date,
         price=price_int,
+        currency=currency,
     )
 
     return await event_service.create_event(event_data, current_user_id, db, image)
@@ -96,6 +102,7 @@ async def create_checkout_session_endpoint(
             chef_stripe_account_id=chef.stripe_account_id,
             foodie_id=current_user_id,
             chef_id=chef.id,
+            currency=event.currency,
         )
 
         return CreateCheckoutSessionResponse(client_secret=result["client_secret"])
@@ -124,7 +131,7 @@ async def get_event_details_endpoint(event_id: str, db: Session = Depends(get_db
     return await event_service.get_event_details(event_id, db)
 
 
-@router.get("/{event_id}/participants", response_model=List[EventParticipant])
+@router.get("/{event_id}/participants", response_model=List[EventParticipantUser])
 async def get_event_participants_endpoint(event_id: str, db: Session = Depends(get_db)):
     """Get all participants for a specific event"""
     return await event_service.get_event_participants(event_id, db)
@@ -159,3 +166,14 @@ async def refund_event_endpoint(
 ):
     """Process a refund for the authenticated user's event participation"""
     return await event_service.refund_event_participation(event_id, current_user_id, db)
+
+
+@router.post("/accept-participation")
+async def accept_participation_endpoint(
+    current_user_id: Annotated[str, Depends(get_current_user_id)],
+    request: AcceptParticipationRequest,
+    db: Session = Depends(get_db),
+):
+    return await event_service.accept_user_participation(
+        current_user_id, request.user_id, request.event_id, db
+    )

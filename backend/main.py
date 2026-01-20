@@ -79,10 +79,14 @@ async def log_requests(request: Request, call_next):
     auth_header = request.headers.get("authorization")
     if not auth_header:
         logger.debug(f"Request to {request.url.path} without authorization header")
-    response = await call_next(request)
-    if response.status_code >= 400:
-        logger.warning(f"{request.method} {request.url.path} - {response.status_code}")
-    return response
+    try:
+        response = await call_next(request)
+        if response.status_code >= 400:
+            logger.warning(f"{request.method} {request.url.path} - {response.status_code}")
+        return response
+    except Exception as e:
+        logger.error(f"Unhandled exception in {request.method} {request.url.path}: {e}", exc_info=True)
+        raise
 
 
 app.include_router(users.router)
