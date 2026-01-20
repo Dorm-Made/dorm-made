@@ -103,14 +103,14 @@ export function useProfile(userId?: string): UseProfileReturn {
 
         toast({
           title: "Sucesso!",
-          description: "Perfil atualizado com sucesso",
+          description: "Profile successfully updated",
           className: "bg-green-500 text-white border-green-600",
           duration: 1500,
         });
       } catch (error) {
         toast({
           title: "Erro",
-          description: getErrorMessage(error, "Não foi possível atualizar o perfil"),
+          description: getErrorMessage(error, "Unable to update profile"),
           variant: "destructive",
           duration: 1500,
         });

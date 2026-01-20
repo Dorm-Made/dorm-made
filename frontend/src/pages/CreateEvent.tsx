@@ -54,6 +54,7 @@ export default function CreateEvent() {
     payload.append("meal_id", selectedMeal!.id);
 
     payload.append("price", getPriceInCents(formData.price).toString());
+    payload.append("currency", formData.currency);
 
     if (selectedImage) {
       payload.append("image", selectedImage);

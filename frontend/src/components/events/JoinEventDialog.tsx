@@ -11,6 +11,7 @@ import { Event } from "@/types";
 import { useCallback, useState } from "react";
 import { formatDate } from "@/lib/utils";
 import { stripeService } from "@/services";
+import { getCurrencySymbol } from "@/utils/price";
 
 interface JoinEventDialogProps {
   event: Event;
@@ -62,7 +63,9 @@ export function JoinEventDialog({ event, isOpen, onClose }: JoinEventDialogProps
             <div className="mt-6 pt-4 border-t">
               <div className="flex justify-between text-xl">
                 <span className="font-medium">Total</span>
-                <span className="font-bold">${(event.price / 100).toFixed(2)}</span>
+                <span className="font-bold">
+                  {getCurrencySymbol(event.currency) + (event.price / 100).toFixed(2)}
+                </span>
               </div>
             </div>
           </div>

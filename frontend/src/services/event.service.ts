@@ -1,6 +1,6 @@
-import { RefundResponse } from "@/types/event.types";
+import { EventParticipant, RefundResponse } from "@/types/event.types";
 import { httpClient } from "./http-client";
-import { Event, EventCreate, EventUpdate, JoinEventRequest } from "@/types";
+import { Event, EventCreate, EventUpdate, JoinEventRequest, User } from "@/types";
 
 async function createEvent(eventData: EventCreate | FormData): Promise<Event> {
   const response = await httpClient.post("/events/", eventData);
@@ -34,6 +34,18 @@ async function getUserEvents(userId: string): Promise<Event[]> {
   return response.data;
 }
 
+async function getEventParticipants(eventId: string): Promise<EventParticipant[]> {
+  const response = await httpClient.get(`/events/${eventId}/participants`);
+  return response.data;
+}
+
+async function acceptUserParticipation(eventId: string, userId: string): Promise<void> {
+  const response = await httpClient.post(`/events/accept-participation`, {
+    event_id: eventId,
+    user_id: userId,
+  });
+}
+
 async function updateEvent(eventId: string, eventData: EventUpdate): Promise<Event> {
   const response = await httpClient.put(`/events/${eventId}`, eventData);
   return response.data;
@@ -56,6 +68,8 @@ export const eventService = {
   getMyEvents,
   getJoinedEvents,
   getUserEvents,
+  getEventParticipants,
+  acceptUserParticipation,
   updateEvent,
   deleteEvent,
   refundEvent,

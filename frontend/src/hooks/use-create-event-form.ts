@@ -7,6 +7,7 @@ export interface EventFormData {
   eventDate: string;
   location: string;
   price: string;
+  currency: string;
 }
 
 export function useCreateEventForm() {
@@ -17,6 +18,7 @@ export function useCreateEventForm() {
     eventDate: "",
     location: "",
     price: "0",
+    currency: "usd",
   });
 
   const updateFormData = useCallback((updates: Partial<EventFormData>) => {

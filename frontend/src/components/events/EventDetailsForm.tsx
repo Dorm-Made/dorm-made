@@ -4,7 +4,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Upload, X } from "lucide-react";
 import { EventFormData } from "@/hooks/use-create-event-form";
-import { formatPriceForDisplay, handlePriceInput, handlePriceBackspace } from "@/utils/price";
+import { formatPriceForDisplay, handlePriceInput, handlePriceBackspace, CURRENCIES, getCurrencySymbol } from "@/utils/price";
 
 interface EventDetailsFormProps {
   formData: EventFormData;
@@ -103,29 +103,48 @@ export default function EventDetailsForm({
             />
           </div>
 
-          {/* Price */}
-          <div>
-            <Label htmlFor="price">Price (USD)</Label>
-            <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
-                $
-              </span>
-              <Input
-                id="price"
-                name="price"
-                type="text"
-                value={formatPriceForDisplay(formData.price || "0")}
-                onChange={handlePriceChange}
-                onKeyDown={handlePriceKeyDown}
-                placeholder="0.00"
-                className="pl-7"
-                inputMode="numeric"
-                required
-              />
+          {/* Price and Currency */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="price">Price</Label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                  {getCurrencySymbol(formData.currency)}
+                </span>
+                <Input
+                  id="price"
+                  name="price"
+                  type="text"
+                  value={formatPriceForDisplay(formData.price || "0")}
+                  onChange={handlePriceChange}
+                  onKeyDown={handlePriceKeyDown}
+                  placeholder="0.00"
+                  className="pl-7"
+                  inputMode="numeric"
+                  required
+                />
+              </div>
+              <p className="text-sm text-muted-foreground mt-1">
+                Price per participant
+              </p>
             </div>
-            <p className="text-sm text-muted-foreground mt-1">
-              Price per participant in dollars
-            </p>
+            <div>
+              <Label htmlFor="currency">Currency</Label>
+              <select
+                id="currency"
+                name="currency"
+                value={formData.currency}
+                onChange={(e) => onInputChange({ currency: e.target.value })}
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                required
+              >
+                {CURRENCIES.map((c) => (
+                  <option key={c.value} value={c.value}>
+                    {c.symbol} ({c.value.toUpperCase()})
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
 
           {/* Location */}

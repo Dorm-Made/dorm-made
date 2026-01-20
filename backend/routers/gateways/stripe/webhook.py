@@ -68,7 +68,7 @@ async def handle_checkout_session_completed(
             id=str(uuid.uuid4()),
             event_id=event_id,
             participant_id=foodie_id,
-            status="confirmed",
+            status="booked",
             payment_intent_id=payment_intent_id,
         )
         db.add(participant_model)
@@ -80,7 +80,9 @@ async def handle_checkout_session_completed(
 
         db.commit()
 
-        logger.info(f"Created participation for event {event_id}, user {foodie_id}")
+        logger.info(
+            f"Created participation request for event {event_id}, user {foodie_id}"
+        )
         return WebhookResponse(
             received=True, message=f"Created participation for event {event_id}"
         )

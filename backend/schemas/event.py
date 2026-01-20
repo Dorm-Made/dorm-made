@@ -11,6 +11,7 @@ class EventBase(BaseModel):
     max_participants: int
     location: str
     price: int
+    currency: str
 
 
 class EventCreate(EventBase):

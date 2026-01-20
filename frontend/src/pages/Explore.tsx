@@ -43,11 +43,13 @@ export default function Explore() {
         try {
           const status = await stripeService.getSessionStatus(sessionId);
 
-          if (status.status === "complete" && status.paymentStatus === "paid") {
+          console.log(status);
+
+          if (status.status === "complete") {
             toast({
-              title: "Payment successful!",
+              title: "Successfully booked!",
               className: "bg-green-500 text-white border-green-600",
-              description: "You're registered for the event.",
+              description: "You booked your reservation, pending chef approval.",
               duration: 5000,
             });
             setActiveTab("joined");

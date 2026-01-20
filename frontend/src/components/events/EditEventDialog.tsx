@@ -17,7 +17,9 @@ import {
   handlePriceInput,
   handlePriceBackspace,
   initializePriceFromCents,
-  getPriceInCents
+  getPriceInCents,
+  CURRENCIES,
+  getCurrencySymbol,
 } from "@/utils/price";
 
 interface EditEventDialogProps {
@@ -35,6 +37,7 @@ interface FormData {
   location: string;
   eventDate: string;
   price: string;
+  currency: string;
 }
 
 export function EditEventDialog({
@@ -62,10 +65,11 @@ export function EditEventDialog({
     location: event.location,
     eventDate: formatDateForInput(event.eventDate),
     price: initializePriceFromCents(event.price),
+    currency: event.currency || "usd",
   });
 
   const handleInputChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
   ) => {
     const { name, value } = e.target;
     setFormData((prev) => ({
@@ -97,6 +101,7 @@ export function EditEventDialog({
       location: formData.location,
       eventDate: formData.eventDate,
       price: getPriceInCents(formData.price),
+      currency: formData.currency,
     };
 
     onSave(updates);
@@ -168,29 +173,48 @@ export function EditEventDialog({
               </div>
             </div>
 
-            {/* Price */}
-            <div>
-              <Label htmlFor="price">Price (USD)</Label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
-                  $
-                </span>
-                <Input
-                  id="price"
-                  name="price"
-                  type="text"
-                  value={formatPriceForDisplay(formData.price || "0")}
-                  onChange={handlePriceChangeLocal}
-                  onKeyDown={handlePriceKeyDown}
-                  placeholder="0.00"
-                  className="pl-7"
-                  inputMode="numeric"
-                  required
-                />
+            {/* Price and Currency */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="price">Price</Label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                    {getCurrencySymbol(formData.currency)}
+                  </span>
+                  <Input
+                    id="price"
+                    name="price"
+                    type="text"
+                    value={formatPriceForDisplay(formData.price || "0")}
+                    onChange={handlePriceChangeLocal}
+                    onKeyDown={handlePriceKeyDown}
+                    placeholder="0.00"
+                    className="pl-7"
+                    inputMode="numeric"
+                    required
+                  />
+                </div>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Price per participant
+                </p>
               </div>
-              <p className="text-sm text-muted-foreground mt-1">
-                Price per participant in dollars
-              </p>
+              <div>
+                <Label htmlFor="currency">Currency</Label>
+                <select
+                  id="currency"
+                  name="currency"
+                  value={formData.currency}
+                  onChange={handleInputChange}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  required
+                >
+                  {CURRENCIES.map((c) => (
+                    <option key={c.value} value={c.value}>
+                      {c.symbol} ({c.value.toUpperCase()})
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
 
             {/* Location */}
