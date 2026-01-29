@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from datetime import datetime, timezone
 import uuid
 import stripe
+from stripe import StripeError, InvalidRequestError
 import logging
 
 from models.event import EventModel
@@ -516,12 +517,12 @@ async def refund_event_participation(
             logger.info(
                 f"Stripe refund created: {refund.id} for event {event_id}, user {user_id}"
             )
-        except stripe.error.InvalidRequestError as e:
+        except InvalidRequestError as e:
             logger.error(
                 f"Stripe invalid request for refund: event {event_id}, user {user_id}: {e}"
             )
             raise HTTPException(status_code=400, detail="Refund not available")
-        except stripe.error.StripeError as e:
+        except StripeError as e:
             logger.error(
                 f"Stripe error during refund: event {event_id}, user {user_id}: {e}"
             )
@@ -584,6 +585,18 @@ async def accept_user_participation(
             )
             .first()
         )
+
+        if not existing_participation:
+            raise HTTPException(
+                status_code=500, detail="Foodie participation not found"
+            )
+
+        if not existing_participation.payment_intent_id:
+            raise HTTPException(
+                status_code=500,
+                detail="Foodie participation doesn't have payment_intend_id",
+            )
+
         existing_participation.status = "confirmed"
         await capture_payment_intent(existing_participation.payment_intent_id)
         db.commit()

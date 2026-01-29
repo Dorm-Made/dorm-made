@@ -58,6 +58,7 @@ def event_participant_model_to_schema(
         event_id=participant_model.event_id,
         participant_id=participant_model.participant_id,
         joined_at=participant_model.joined_at,
+        status=participant_model.status,
     )
 
 

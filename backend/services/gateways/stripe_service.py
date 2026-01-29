@@ -1,5 +1,6 @@
 import stripe
-from typing import Dict, Any
+from stripe import StripeError, InvalidRequestError, SignatureVerificationError
+from typing import Dict, Any, Literal
 from fastapi import HTTPException
 import logging
 from utils.config import config
@@ -36,7 +37,7 @@ async def create_stripe_connect_account(
 
         logger.info(f"Stripe Connect account created for user {user_id}: {account.id}")
         return {"account_id": account.id, "onboarding_url": account_link.url}
-    except stripe.error.StripeError as e:
+    except StripeError as e:
         logger.error(f"Stripe error creating account for user {user_id}: {e}")
         raise HTTPException(status_code=400, detail=f"Stripe API error: {str(e)}")
 
@@ -50,16 +51,21 @@ async def get_stripe_account_status(stripe_account_id: str) -> Dict[str, Any]:
             "onboarding_complete": account.details_submitted,
             "payouts_enabled": account.payouts_enabled,
         }
-    except stripe.error.InvalidRequestError:
+    except InvalidRequestError:
         logger.warning(f"Stripe account not found: {stripe_account_id}")
         raise HTTPException(status_code=404, detail="Stripe account not found")
-    except stripe.error.StripeError as e:
+    except StripeError as e:
         logger.error(f"Stripe error retrieving account {stripe_account_id}: {e}")
         raise HTTPException(status_code=400, detail=f"Stripe API error: {str(e)}")
 
 
 async def create_account_link(
-    stripe_account_id: str, user_id: str, link_type: str
+    stripe_account_id: str,
+    user_id: str,
+    link_type: Literal[
+        "account_onboarding",
+        "account_update",
+    ],
 ) -> str:
     try:
         account_link = stripe.AccountLink.create(
@@ -73,7 +79,7 @@ async def create_account_link(
             },
         )
         return account_link.url
-    except stripe.error.StripeError as e:
+    except StripeError as e:
         raise HTTPException(status_code=400, detail=f"Stripe API error: {str(e)}")
 
 
@@ -93,7 +99,7 @@ def validate_webhook_signature(
         return event
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid payload")
-    except stripe.error.SignatureVerificationError:
+    except SignatureVerificationError:
         raise HTTPException(status_code=400, detail="Invalid signature")
 
 
@@ -146,7 +152,7 @@ async def create_checkout_session(
             f"Checkout session created: {session.id} for event {event_id}, user {foodie_id}"
         )
         return {"client_secret": session.client_secret}
-    except stripe.error.StripeError as e:
+    except StripeError as e:
         logger.error(f"Stripe error creating checkout for event {event_id}: {e}")
         raise HTTPException(status_code=400, detail=f"Stripe API error: {str(e)}")
 
@@ -158,9 +164,9 @@ async def retrieve_checkout_session(session_id: str) -> Dict[str, Any]:
             "status": session.status,
             "payment_status": session.payment_status,
         }
-    except stripe.error.InvalidRequestError:
+    except InvalidRequestError:
         raise HTTPException(status_code=400, detail="Invalid session")
-    except stripe.error.StripeError as e:
+    except StripeError as e:
         raise HTTPException(status_code=400, detail=f"Stripe API error: {str(e)}")
 
 
