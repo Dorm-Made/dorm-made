@@ -6,6 +6,7 @@ import logging
 
 from utils.database import get_db
 from services.gateways import stripe_service
+from services.gateways import email_service
 from services import user_service
 from schemas.stripe import WebhookResponse
 from models.event import EventModel
@@ -75,11 +76,26 @@ async def handle_checkout_session_completed(
 
         event_model = db.query(EventModel).filter(EventModel.id == event_id).first()
 
-        if event_model:
-            event_model.current_participants += 1
+        if not event_model:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Event with id ${event_id} not found for webhook event",
+            )
 
+        chef_model = user_service.get_user_by_id(event_model.host_user_id, db)
+
+        if not chef_model:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Chef with id ${event_model.host_user_id} not found for webhook event",
+            )
+
+        event_model.current_participants += 1
         db.commit()
 
+        await email_service.send_chef_notification(
+            chef_email=chef_model.email, event_name=event_model.title
+        )
         logger.info(
             f"Created participation request for event {event_id}, user {foodie_id}"
         )

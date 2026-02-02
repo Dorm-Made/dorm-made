@@ -40,5 +40,4 @@ class Event(EventBase):
         from_attributes=True,
         alias_generator=to_camel,
         populate_by_name=True,
-        by_alias=True,
     )

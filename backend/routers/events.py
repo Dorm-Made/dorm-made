@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, File, UploadFile, Form, HTTPException
-from typing import List, Annotated, Optional
+from typing import List, Annotated, Optional, cast
 from sqlalchemy.orm import Session
 
 from schemas.event import Event, EventCreate, EventUpdate
@@ -67,7 +67,7 @@ async def create_event_endpoint(
         max_participants=max_participants,
         location=location,
         event_date=event_date,
-        price=price_int,
+        price=price_int or 0,
         currency=currency,
     )
 
@@ -94,12 +94,13 @@ async def create_checkout_session_endpoint(
             f"Event on {event.event_date.strftime('%B %d, %Y at %I:%M %p')}"
         )
 
+        # validate_checkout_requirements ensures stripe_account_id is not None
         result = await create_checkout_session(
             event_id=event_id,
             event_title=event.title,
             event_description=event_description,
             price_cents=event.price,
-            chef_stripe_account_id=chef.stripe_account_id,
+            chef_stripe_account_id=cast(str, chef.stripe_account_id),
             foodie_id=current_user_id,
             chef_id=chef.id,
             currency=event.currency,
