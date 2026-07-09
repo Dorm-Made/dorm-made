@@ -1,8 +1,9 @@
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { UtensilsCrossed, CalendarDays, CreditCard } from "lucide-react";
+import { UtensilsCrossed, CalendarDays, CreditCard, Star } from "lucide-react";
 import { ProfileMyMealsTab } from "./my-meals/ProfileMyMealsTab";
 import { ProfileMyEventsTab } from "./my-events/ProfileMyEventsTab";
 import { ProfilePaymentsTab } from "./payments/ProfilePaymentsTab";
+import { ProfileReviewsTab } from "./reviews/ProfileReviewsTab";
 
 interface ProfileTabsProps {
   userId: string;
@@ -19,7 +20,7 @@ export function ProfileTabs({
 }: ProfileTabsProps) {
   return (
     <Tabs defaultValue={defaultTab} className="w-full">
-      <TabsList className={`w-full grid ${isOwnProfile ? "grid-cols-3" : "grid-cols-2"}`}>
+      <TabsList className={`w-full grid ${isOwnProfile ? "grid-cols-4" : "grid-cols-3"}`}>
         <TabsTrigger value="events" className="flex items-center gap-2">
           <CalendarDays className="h-4 w-4 hidden lg:block" />
           <span>{isOwnProfile ? "My Events" : "User Events"}</span>
@@ -27,6 +28,10 @@ export function ProfileTabs({
         <TabsTrigger value="meals" className="flex items-center gap-2">
           <UtensilsCrossed className="h-4 w-4 hidden lg:block" />
           <span>{isOwnProfile ? "My Meals" : "User Meals"}</span>
+        </TabsTrigger>
+        <TabsTrigger value="reviews" className="flex items-center gap-2">
+          <Star className="h-4 w-4 hidden lg:block" />
+          <span>Reviews</span>
         </TabsTrigger>
         {isOwnProfile && (
           <TabsTrigger value="payments" className="flex items-center gap-2">
@@ -42,6 +47,10 @@ export function ProfileTabs({
 
       <TabsContent value="meals" className="mt-6">
         <ProfileMyMealsTab userId={userId} isOwnProfile={isOwnProfile} userName={userName} />
+      </TabsContent>
+
+      <TabsContent value="reviews" className="mt-6">
+        <ProfileReviewsTab userId={userId} isOwnProfile={isOwnProfile} userName={userName} />
       </TabsContent>
 
       {isOwnProfile && (

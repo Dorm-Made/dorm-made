@@ -1,7 +1,7 @@
 import { Event, EventUpdate } from "@/types";
 import { Card, CardContent } from "../ui/card";
 import { Button } from "../ui/button";
-import { Clock, MapPin, User, Users, UtensilsCrossed, Pencil, Trash2 } from "lucide-react";
+import { Clock, MapPin, Star, User, Users, UtensilsCrossed, Pencil, Trash2 } from "lucide-react";
 import { formatDate } from "@/lib/utils";
 import { useMealDialog } from "@/hooks/use-meal-dialog";
 import { MealDialog } from "../meals/MealDialog";
@@ -10,6 +10,12 @@ import { DeleteEventDialog } from "./DeleteEventDialog";
 import { JoinEventDialog } from "./JoinEventDialog";
 import { RefundEventDialog } from "./RefundEventDialog";
 import { EventParticipantsDialog } from "./EventParticipantsDialog";
+import { ReviewEventDialog } from "../reviews/ReviewEventDialog";
+import { EventReviewsDialog } from "../reviews/EventReviewsDialog";
+import { RateGuestsDialog } from "../reviews/RateGuestsDialog";
+import { PendingReviewGateDialog } from "../reviews/PendingReviewGateDialog";
+import { PendingEventReview } from "@/types/review.types";
+import { reviewService } from "@/services";
 import { useNavigate } from "react-router-dom";
 import { useEditEvent } from "@/hooks/use-edit-event";
 import { eventService } from "@/services";
@@ -40,6 +46,12 @@ export function EventCard({
   const [isRefundDialogOpen, setIsRefundDialogOpen] = useState(false);
   const [isRefunding, setIsRefunding] = useState(false);
   const [isParticipantsDialogOpen, setIsParticipantsDialogOpen] = useState(false);
+  const [isReviewDialogOpen, setIsReviewDialogOpen] = useState(false);
+  const [isReviewsListOpen, setIsReviewsListOpen] = useState(false);
+  const [isRateGuestsOpen, setIsRateGuestsOpen] = useState(false);
+  const [isPendingGateOpen, setIsPendingGateOpen] = useState(false);
+  const [pendingGateReviews, setPendingGateReviews] = useState<PendingEventReview[]>([]);
+  const [checkingPending, setCheckingPending] = useState(false);
   const {
     isOpen: isEditDialogOpen,
     loading: isUpdating,
@@ -50,6 +62,7 @@ export function EventCard({
 
   const currentUser = JSON.parse(localStorage.getItem("currentUser") || "null");
   const isHost = currentUser && currentUser.id === event.hostUserId;
+  const isPastEvent = new Date(event.eventDate).getTime() < Date.now();
 
   const handleMealClick = () => {
     if (event.mealId) {
@@ -96,7 +109,7 @@ export function EventCard({
     }
   };
 
-  const handleJoinEventClick = () => {
+  const handleJoinEventClick = async () => {
     if (!currentUser) {
       toast({
         title: "Authentication Required",
@@ -107,6 +120,33 @@ export function EventCard({
       return;
     }
 
+    // Booking gate: must rate previous attended events before booking a new one
+    try {
+      setCheckingPending(true);
+      const pending = await reviewService.getPendingReviews();
+      if (pending.pendingEventReviews.length > 0) {
+        setPendingGateReviews(pending.pendingEventReviews);
+        setIsPendingGateOpen(true);
+        return;
+      }
+    } catch (err) {
+      // If the check fails for any reason, don't block the booking
+      console.error("Pending review check failed:", err);
+    } finally {
+      setCheckingPending(false);
+    }
+
+    setIsJoinDialogOpen(true);
+  };
+
+  const handlePendingReviewsCleared = () => {
+    setIsPendingGateOpen(false);
+    toast({
+      title: "Thanks for the feedback!",
+      description: "You're all set — continuing to booking.",
+      className: "bg-green-500 text-white border-green-600",
+      duration: 2000,
+    });
     setIsJoinDialogOpen(true);
   };
 
@@ -243,22 +283,57 @@ export function EventCard({
               {event.currentParticipants}/{event.maxParticipants} participants
             </button>
           </div>
-          {!isHost && (
+
+          {/* Reviews link - past events only */}
+          {isPastEvent && (
+            <div className="flex items-center text-sm text-muted-foreground">
+              <Star className="h-4 w-4 mr-2" />
+              <button
+                onClick={() => setIsReviewsListOpen(true)}
+                className="text-primary hover:text-primary/80 underline underline-offset-2 cursor-pointer transition-colors"
+              >
+                See reviews
+              </button>
+            </div>
+          )}
+
+          {isPastEvent ? (
             <>
-              {isJoinedByUser ? (
-                <Button className="mx-4 mt-8" variant="destructive" onClick={handleRefundClick}>
-                  Cancel Participation
+              {isHost && (
+                <Button className="mx-4 mt-8" onClick={() => setIsRateGuestsOpen(true)}>
+                  <Star className="h-4 w-4 mr-2" />
+                  Rate Guests
                 </Button>
-              ) : (
-                <Button
-                  className="mx-4 mt-8"
-                  onClick={handleJoinEventClick}
-                  disabled={event.currentParticipants >= event.maxParticipants}
-                >
-                  {event.currentParticipants >= event.maxParticipants ? "Event Full" : "Join Event"}
+              )}
+              {!isHost && isJoinedByUser && (
+                <Button className="mx-4 mt-8" onClick={() => setIsReviewDialogOpen(true)}>
+                  <Star className="h-4 w-4 mr-2" />
+                  Rate this Experience
                 </Button>
               )}
             </>
+          ) : (
+            !isHost && (
+              <>
+                {isJoinedByUser ? (
+                  <Button className="mx-4 mt-8" variant="destructive" onClick={handleRefundClick}>
+                    Cancel Participation
+                  </Button>
+                ) : (
+                  <Button
+                    className="mx-4 mt-8"
+                    onClick={handleJoinEventClick}
+                    disabled={event.currentParticipants >= event.maxParticipants || checkingPending}
+                  >
+                    {event.currentParticipants >= event.maxParticipants
+                      ? "Event Full"
+                      : checkingPending
+                        ? "Checking..."
+                        : "Join Event"}
+                  </Button>
+                )}
+              </>
+            )
           )}
         </CardContent>
       </Card>
@@ -304,6 +379,36 @@ export function EventCard({
         onClose={() => setIsParticipantsDialogOpen(false)}
         isHost={isHost}
         onParticipantAccepted={onEventUpdated}
+      />
+
+      <ReviewEventDialog
+        isOpen={isReviewDialogOpen}
+        onClose={() => setIsReviewDialogOpen(false)}
+        event={event}
+        onReviewSubmitted={onEventUpdated}
+      />
+
+      <EventReviewsDialog
+        eventId={event.id}
+        eventTitle={event.title}
+        isOpen={isReviewsListOpen}
+        onClose={() => setIsReviewsListOpen(false)}
+      />
+
+      {isHost && (
+        <RateGuestsDialog
+          eventId={event.id}
+          eventTitle={event.title}
+          isOpen={isRateGuestsOpen}
+          onClose={() => setIsRateGuestsOpen(false)}
+        />
+      )}
+
+      <PendingReviewGateDialog
+        isOpen={isPendingGateOpen}
+        onClose={() => setIsPendingGateOpen(false)}
+        pendingReviews={pendingGateReviews}
+        onAllCleared={handlePendingReviewsCleared}
       />
     </>
   );

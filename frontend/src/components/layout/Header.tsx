@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { authService } from "@/services";
 import { analytics } from "@/lib/analytics";
+import { PendingGuestReviewsBanner } from "@/components/reviews/PendingGuestReviewsBanner";
 
 export function Header() {
   const [currentUser, setCurrentUser] = useState<any>(null);
@@ -110,6 +111,9 @@ export function Header() {
           </button>
         </div>
       </header>
+
+      {/* Soft reminder for hosts with unrated guests */}
+      {currentUser && <PendingGuestReviewsBanner />}
 
       {/* Mobile Menu Overlay */}
       {mobileMenuOpen && (

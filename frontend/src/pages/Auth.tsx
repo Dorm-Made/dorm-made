@@ -6,17 +6,19 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
 import { Eye, EyeOff } from "lucide-react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/hooks/use-auth";
 import { usePasswordToggle } from "@/hooks/use-password-toggle";
 
 export default function Auth() {
+  const [searchParams] = useSearchParams();
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
     email: "",
     password: "",
     university: "",
+    inviteCode: searchParams.get("invite") || "",
   });
 
   const location = useLocation();
@@ -132,6 +134,25 @@ export default function Auth() {
                         placeholder="University of Example"
                         required
                       />
+                    </div>
+
+                    {/* Invite Code (optional) */}
+                    <div>
+                      <Label htmlFor="inviteCode">
+                        Invite code{" "}
+                        <span className="text-muted-foreground font-normal">(optional)</span>
+                      </Label>
+                      <Input
+                        id="inviteCode"
+                        name="inviteCode"
+                        value={formData.inviteCode}
+                        onChange={handleInputChange}
+                        placeholder="e.g. FRANCO-7K2"
+                        className="uppercase"
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Got invited by a friend? Their name will live on your profile.
+                      </p>
                     </div>
 
                     {/* Password */}

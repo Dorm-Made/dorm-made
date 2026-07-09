@@ -19,7 +19,15 @@ async def get_user(user_id: str, db: Session) -> Optional[User]:
     try:
         user_model = db.query(UserModel).filter(UserModel.id == user_id).first()
         if user_model:
-            return user_model_to_schema(user_model)
+            referred_by_name = None
+            if getattr(user_model, "referred_by_user_id", None):
+                referrer = (
+                    db.query(UserModel)
+                    .filter(UserModel.id == user_model.referred_by_user_id)
+                    .first()
+                )
+                referred_by_name = referrer.name if referrer else None
+            return user_model_to_schema(user_model, referred_by_name=referred_by_name)
         return None
     except Exception as e:
         logger.error(f"Error getting user {user_id}: {e}", exc_info=True)
@@ -27,7 +35,9 @@ async def get_user(user_id: str, db: Session) -> Optional[User]:
 
 
 async def create_user(user: UserCreate, db: Session) -> User:
-    """Create a new user"""
+    """Create a new user (optionally referred by an existing user's invite code)"""
+    from services import referral_service
+
     try:
         # Check if user with email already exists
         existing_user = (
@@ -37,10 +47,16 @@ async def create_user(user: UserCreate, db: Session) -> User:
             logger.warning(f"Attempt to register with existing email: {user.email}")
             raise HTTPException(status_code=400, detail="Email already registered")
 
+        # Resolve referral (validated before creating anything, so a typo'd
+        # code fails loudly instead of silently dropping the referral)
+        referrer = None
+        if user.invite_code and user.invite_code.strip():
+            referrer = referral_service.resolve_invite_code(user.invite_code, db)
+
         # Hash password
         hashed_password = hash_password(user.password)
 
-        # Create new user model
+        # Create new user model with their own invite code ready to share
         user_model = UserModel(
             id=str(uuid.uuid4()),
             name=user.name,
@@ -48,14 +64,20 @@ async def create_user(user: UserCreate, db: Session) -> User:
             hashed_password=hashed_password,
             university=user.university,
             description=user.description,
+            invite_code=referral_service.generate_invite_code(user.name, db),
+            referred_by_user_id=referrer.id if referrer else None,
         )
 
         db.add(user_model)
         db.commit()
         db.refresh(user_model)
 
+        if referrer:
+            logger.info(f"User {user_model.id} referred by {referrer.id} ({referrer.invite_code})")
         logger.info(f"User created successfully: {user_model.id}")
-        return user_model_to_schema(user_model)
+        return user_model_to_schema(
+            user_model, referred_by_name=referrer.name if referrer else None
+        )
     except HTTPException:
         raise
     except Exception as e:

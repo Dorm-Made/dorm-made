@@ -2,10 +2,19 @@ from .user import UserModel
 from .event import EventModel
 from .event_participant import EventParticipantModel
 from .meal import MealModel
+from .event_review import EventReviewModel
+from .guest_review import GuestReviewModel
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy import MetaData
 
-__all__ = ["UserModel", "EventModel", "EventParticipantModel", "MealModel"]
+__all__ = [
+    "UserModel",
+    "EventModel",
+    "EventParticipantModel",
+    "MealModel",
+    "EventReviewModel",
+    "GuestReviewModel",
+]
 
 # Define the base and metadata once
 convention = {

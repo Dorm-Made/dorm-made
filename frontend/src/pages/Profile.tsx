@@ -12,6 +12,10 @@ import { useProfile } from "@/hooks/use-profile";
 import { useProfilePhoto } from "@/hooks/use-profile-photo";
 import { useToast } from "@/hooks/use-toast";
 import { ProfileTabs } from "@/components/profile/ProfileTabs";
+import { ProfileRatingBadges } from "@/components/reviews/ProfileRatingBadges";
+import { ReferredByChip } from "@/components/referral/ReferredByChip";
+import { InviteCard } from "@/components/referral/InviteCard";
+import { TasteProfileCard } from "@/components/profile/TasteProfileCard";
 import { analytics } from "@/lib/analytics";
 import {
   GraduationCap,
@@ -257,6 +261,17 @@ export default function Profile() {
                     )}
                   </div>
 
+                  {/* Rating badges (chef /15 and guest /10) */}
+                  {!isEditing && userId && <ProfileRatingBadges userId={userId} />}
+
+                  {/* Permanent referral credit (Clubhouse-style) */}
+                  {!isEditing && user.referred_by_user_id && user.referred_by_name && (
+                    <ReferredByChip
+                      referrerId={user.referred_by_user_id}
+                      referrerName={user.referred_by_name}
+                    />
+                  )}
+
                   {/* University*/}
                   {!isEditing && user.university && (
                     <div className="flex items-center justify-center lg:justify-start text-base lg:text-lg text-muted-foreground">
@@ -330,12 +345,24 @@ export default function Profile() {
                           No description yet. Click "Edit" to add one.
                         </p>
                       )}
+
+                      {/* Public taste profile from the onboarding quiz */}
+                      <div className="pt-2">
+                        <TasteProfileCard
+                          archetype={user.taste_archetype}
+                          description={user.taste_description}
+                          isOwnProfile={isOwnProfile()}
+                        />
+                      </div>
                     </>
                   )}
                 </div>
               </div>
             </CardContent>
           </Card>
+
+          {/* Invite friends (own profile only) */}
+          {isOwnProfile() && <InviteCard />}
 
           {/* Tabs Section */}
           <Card className="mb-6">

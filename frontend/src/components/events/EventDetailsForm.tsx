@@ -86,7 +86,7 @@ export default function EventDetailsForm({
               onChange={handleInputChange}
               placeholder="6"
               min="1"
-              max="20"
+              max="25"
               required
             />
           </div>

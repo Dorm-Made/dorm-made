@@ -14,7 +14,9 @@ from schemas.event_participant import EventParticipant
 from schemas.meal import Meal
 
 
-def user_model_to_schema(user_model: UserModel) -> User:
+def user_model_to_schema(
+    user_model: UserModel, referred_by_name: str = None
+) -> User:
     """Convert UserModel to User schema"""
     return User(
         id=user_model.id,
@@ -25,6 +27,12 @@ def user_model_to_schema(user_model: UserModel) -> User:
         profile_picture=user_model.profile_picture,
         stripe_account_id=user_model.stripe_account_id,
         stripe_onboarding_complete=user_model.stripe_onboarding_complete,
+        invite_code=getattr(user_model, "invite_code", None),
+        referred_by_user_id=getattr(user_model, "referred_by_user_id", None),
+        referred_by_name=referred_by_name,
+        taste_archetype=getattr(user_model, "taste_archetype", None),
+        taste_description=getattr(user_model, "taste_description", None),
+        onboarding_completed=bool(getattr(user_model, "onboarding_completed", False)),
         created_at=user_model.created_at,
     )
 

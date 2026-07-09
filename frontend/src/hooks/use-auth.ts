@@ -11,6 +11,7 @@ interface SignUpFormData {
   email: string;
   password: string;
   university: string;
+  inviteCode?: string;
 }
 
 interface LoginFormData {
@@ -49,6 +50,7 @@ export function useAuth(): UseAuthReturn {
           email: data.email,
           university: data.university,
           password: data.password,
+          invite_code: data.inviteCode?.trim() || undefined,
         };
 
         const user = await userService.createUser(userData);
@@ -113,7 +115,12 @@ export function useAuth(): UseAuthReturn {
           duration: 1500,
         });
 
-        navigate("/explore");
+        // First login: taste-quiz onboarding is not skippable
+        if (!loginResponse.user.onboarding_completed) {
+          navigate("/onboarding");
+        } else {
+          navigate("/explore");
+        }
       } catch (error) {
         toast({
           title: "Error",

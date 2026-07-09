@@ -10,7 +10,7 @@ from alembic.config import Config
 from alembic import command
 from contextlib import asynccontextmanager
 
-from routers import users, events, meals, checkout
+from routers import users, events, meals, checkout, reviews, onboarding
 from routers.gateways.stripe import webhook, connect_webhook
 
 import sentry_sdk
@@ -93,6 +93,8 @@ app.include_router(users.router)
 app.include_router(events.router)
 app.include_router(meals.router)
 app.include_router(checkout.router)
+app.include_router(reviews.router)
+app.include_router(onboarding.router)
 app.include_router(webhook.router)
 app.include_router(connect_webhook.router)
 
