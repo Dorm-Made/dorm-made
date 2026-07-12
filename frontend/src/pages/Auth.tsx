@@ -12,12 +12,14 @@ import { usePasswordToggle } from "@/hooks/use-password-toggle";
 
 export default function Auth() {
   const [searchParams] = useSearchParams();
+  // Prefill support: the landing page hands visitors off to
+  // /signup?firstName=..&email=..&university=.. so they never retype
   const [formData, setFormData] = useState({
-    firstName: "",
-    lastName: "",
-    email: "",
+    firstName: searchParams.get("firstName") || "",
+    lastName: searchParams.get("lastName") || "",
+    email: searchParams.get("email") || "",
     password: "",
-    university: "",
+    university: searchParams.get("university") || "",
     inviteCode: searchParams.get("invite") || "",
   });
 
