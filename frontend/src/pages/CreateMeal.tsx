@@ -7,13 +7,25 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { useCreateMealForm } from "@/hooks/use-create-meal-form";
 import { useImageUpload } from "@/hooks/use-image-upload";
-import { ChefHat, Upload, X } from "lucide-react";
+import { ImageAdjuster } from "@/components/shared/ImageAdjuster";
+import { LIMITS, charCount } from "@/lib/limits";
+import { ChefHat, Crop, Upload, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 const CreateMeal = () => {
   const navigate = useNavigate();
   const { formData, updateFormData, loading, submitMeal } = useCreateMealForm();
-  const { selectedImage, imagePreview, handleImageChange, handleRemoveImage } = useImageUpload();
+  const {
+    selectedImage,
+    imagePreview,
+    rawPreview,
+    rawFileName,
+    needsAdjust,
+    handleImageChange,
+    applyAdjustedImage,
+    reAdjust,
+    handleRemoveImage,
+  } = useImageUpload();
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -59,6 +71,7 @@ const CreateMeal = () => {
                       value={formData.name}
                       onChange={handleInputChange}
                       placeholder="e.g., Classic Margherita Pizza"
+                      maxLength={LIMITS.MEAL_NAME}
                       required
                     />
                   </div>
@@ -73,8 +86,12 @@ const CreateMeal = () => {
                       onChange={handleInputChange}
                       placeholder="Describe your meal, cooking method, and what makes it special..."
                       rows={4}
+                      maxLength={LIMITS.MEAL_DESCRIPTION}
                       required
                     />
+                    <p className="text-xs text-muted-foreground mt-1 text-right">
+                      {charCount(formData.description, LIMITS.MEAL_DESCRIPTION)}
+                    </p>
                   </div>
 
                   {/* Ingredients */}
@@ -86,8 +103,12 @@ const CreateMeal = () => {
                       value={formData.ingredients}
                       onChange={handleInputChange}
                       placeholder="List all ingredients"
+                      maxLength={LIMITS.MEAL_INGREDIENTS}
                       required
                     />
+                    <p className="text-xs text-muted-foreground mt-1 text-right">
+                      {charCount(formData.ingredients, LIMITS.MEAL_INGREDIENTS)}
+                    </p>
                   </div>
 
                   {/* Meal Image Upload */}
@@ -98,7 +119,7 @@ const CreateMeal = () => {
                     </p>
 
                     {!imagePreview ? (
-                      <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-gray-400 transition-colors">
+                      <div className="border-2 border-dashed border-border rounded-lg p-6 text-center hover:border-muted-foreground transition-colors">
                         <Input
                           id="meal-image"
                           type="file"
@@ -107,29 +128,50 @@ const CreateMeal = () => {
                           className="hidden"
                         />
                         <label htmlFor="meal-image" className="cursor-pointer">
-                          <Upload className="mx-auto h-12 w-12 text-gray-400 mb-3" />
-                          <p className="text-sm font-medium text-gray-700 mb-1">
+                          <Upload className="mx-auto h-12 w-12 text-muted-foreground mb-3" />
+                          <p className="text-sm font-medium text-foreground mb-1">
                             Click to upload meal image
                           </p>
-                          <p className="text-xs text-gray-500">JPEG, PNG or WebP (max. 5MB)</p>
+                          <p className="text-xs text-muted-foreground">
+                            JPEG, PNG or WebP (max. 5MB)
+                          </p>
                         </label>
                       </div>
+                    ) : needsAdjust && rawPreview ? (
+                      <ImageAdjuster
+                        src={rawPreview}
+                        aspect={16 / 9}
+                        fileName={rawFileName || "meal.jpg"}
+                        onApply={applyAdjustedImage}
+                        onCancel={handleRemoveImage}
+                      />
                     ) : (
                       <div className="relative rounded-lg overflow-hidden">
                         <img
                           src={imagePreview}
                           alt="Meal preview"
-                          className="w-full h-64 object-cover rounded-lg"
+                          className="w-full aspect-video object-cover rounded-lg"
                         />
-                        <Button
-                          type="button"
-                          variant="destructive"
-                          size="icon"
-                          className="absolute top-2 right-2"
-                          onClick={handleRemoveImage}
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
+                        <div className="absolute top-2 right-2 flex gap-2">
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            size="icon"
+                            onClick={reAdjust}
+                            aria-label="Adjust image"
+                          >
+                            <Crop className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="destructive"
+                            size="icon"
+                            onClick={handleRemoveImage}
+                            aria-label="Remove image"
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </div>
                     )}
                   </div>

@@ -2,15 +2,22 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Upload, X } from "lucide-react";
+import { Crop, Upload, X } from "lucide-react";
 import { EventFormData } from "@/hooks/use-create-event-form";
+import { ImageAdjuster } from "@/components/shared/ImageAdjuster";
+import { LIMITS, charCount } from "@/lib/limits";
 import { formatPriceForDisplay, handlePriceInput, handlePriceBackspace, CURRENCIES, getCurrencySymbol } from "@/utils/price";
 
 interface EventDetailsFormProps {
   formData: EventFormData;
   onInputChange: (updates: Partial<EventFormData>) => void;
   imagePreview: string | null;
+  rawPreview: string | null;
+  rawFileName: string | null;
+  needsAdjust: boolean;
   onImageChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onApplyAdjusted: (file: File, dataUrl: string) => void;
+  onReAdjust: () => void;
   onRemoveImage: () => void;
 }
 
@@ -18,7 +25,12 @@ export default function EventDetailsForm({
   formData,
   onInputChange,
   imagePreview,
+  rawPreview,
+  rawFileName,
+  needsAdjust,
   onImageChange,
+  onApplyAdjusted,
+  onReAdjust,
   onRemoveImage,
 }: EventDetailsFormProps) {
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -57,6 +69,7 @@ export default function EventDetailsForm({
               value={formData.title}
               onChange={handleInputChange}
               placeholder="e.g., Pasta Night with Friends"
+              maxLength={LIMITS.EVENT_TITLE}
               required
             />
           </div>
@@ -71,8 +84,12 @@ export default function EventDetailsForm({
               onChange={handleInputChange}
               placeholder="Describe what participants will learn and experience..."
               rows={3}
+              maxLength={LIMITS.EVENT_DESCRIPTION}
               required
             />
+            <p className="text-xs text-muted-foreground mt-1 text-right">
+              {charCount(formData.description, LIMITS.EVENT_DESCRIPTION)}
+            </p>
           </div>
 
           {/* Max Participants and Event Date */}
@@ -156,6 +173,7 @@ export default function EventDetailsForm({
               value={formData.location}
               onChange={handleInputChange}
               placeholder="e.g., Dorm Kitchen 3A, Student Center Kitchen"
+              maxLength={LIMITS.EVENT_LOCATION}
               required
             />
           </div>
@@ -168,7 +186,7 @@ export default function EventDetailsForm({
             </p>
 
             {!imagePreview ? (
-              <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-gray-400 transition-colors">
+              <div className="border-2 border-dashed border-border rounded-lg p-6 text-center hover:border-muted-foreground transition-colors">
                 <Input
                   id="event-image"
                   type="file"
@@ -177,29 +195,48 @@ export default function EventDetailsForm({
                   className="hidden"
                 />
                 <label htmlFor="event-image" className="cursor-pointer">
-                  <Upload className="mx-auto h-12 w-12 text-gray-400 mb-3" />
-                  <p className="text-sm font-medium text-gray-700 mb-1">
+                  <Upload className="mx-auto h-12 w-12 text-muted-foreground mb-3" />
+                  <p className="text-sm font-medium text-foreground mb-1">
                     Click to upload event image
                   </p>
-                  <p className="text-xs text-gray-500">JPEG, PNG or WebP (max. 5MB)</p>
+                  <p className="text-xs text-muted-foreground">JPEG, PNG or WebP (max. 5MB)</p>
                 </label>
               </div>
+            ) : needsAdjust && rawPreview ? (
+              <ImageAdjuster
+                src={rawPreview}
+                aspect={16 / 9}
+                fileName={rawFileName || "event.jpg"}
+                onApply={onApplyAdjusted}
+                onCancel={onRemoveImage}
+              />
             ) : (
               <div className="relative rounded-lg overflow-hidden">
                 <img
                   src={imagePreview}
                   alt="Event preview"
-                  className="w-full h-64 object-cover rounded-lg"
+                  className="w-full aspect-video object-cover rounded-lg"
                 />
-                <Button
-                  type="button"
-                  variant="destructive"
-                  size="icon"
-                  className="absolute top-2 right-2"
-                  onClick={onRemoveImage}
-                >
-                  <X className="h-4 w-4" />
-                </Button>
+                <div className="absolute top-2 right-2 flex gap-2">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="icon"
+                    onClick={onReAdjust}
+                    aria-label="Adjust image"
+                  >
+                    <Crop className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="icon"
+                    onClick={onRemoveImage}
+                    aria-label="Remove image"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
             )}
           </div>

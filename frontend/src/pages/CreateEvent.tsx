@@ -8,8 +8,9 @@ import { Step, useCreateEvent } from "@/hooks/use-create-event";
 import SelectMeal from "@/components/events/SelectMeal";
 import EventDetailsForm from "@/components/events/EventDetailsForm";
 import EventSummary from "@/components/events/EventSummary";
-import StripeCheckStep from "@/components/events/StripeCheckStep";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { CreditCard, Loader2, Lock } from "lucide-react";
 import { useCreateEventForm } from "@/hooks/use-create-event-form";
 import { useImageUpload } from "@/hooks/use-image-upload";
 import { useMeals } from "@/hooks/use-meals";
@@ -36,13 +37,28 @@ export default function CreateEvent() {
     getProgressPercentage,
   } = useCreateEvent();
 
-  const { formData, updateFormData, validateEventDetails } = useCreateEventForm();
+  const { formData, updateFormData, clearDraft, validateEventDetails } = useCreateEventForm();
 
-  const { selectedImage, imagePreview, handleImageChange, handleRemoveImage } = useImageUpload();
+  const {
+    selectedImage,
+    imagePreview,
+    rawPreview,
+    rawFileName,
+    needsAdjust,
+    handleImageChange,
+    applyAdjustedImage,
+    reAdjust,
+    handleRemoveImage,
+  } = useImageUpload();
 
   const { meals, loading: mealsLoading, selectedMeal, selectMeal } = useMeals();
 
-  const { canAcceptPayments } = useStripeConnect();
+  const {
+    canAcceptPayments,
+    loading: stripeLoading,
+    connecting: stripeConnecting,
+    startOnboarding,
+  } = useStripeConnect();
 
   const buildPayload = () => {
     const payload = new FormData();
@@ -108,6 +124,8 @@ export default function CreateEvent() {
         analytics.eventCreated({ userId: user.id, event, meal: selectedMeal! });
       }
 
+      clearDraft();
+
       toast({
         title: "Success!",
         description: "Event created successfully!",
@@ -130,8 +148,6 @@ export default function CreateEvent() {
 
   const canProceedToNext = () => {
     switch (currentStep) {
-      case Step.STRIPE_CHECK:
-        return canAcceptPayments;
       case Step.MEAL:
         return selectedMeal !== null;
       case Step.EVENT_DETAILS:
@@ -145,8 +161,6 @@ export default function CreateEvent() {
 
   const renderStepContent = () => {
     switch (currentStep) {
-      case Step.STRIPE_CHECK:
-        return <StripeCheckStep />;
       case Step.MEAL:
         return (
           <SelectMeal
@@ -162,7 +176,12 @@ export default function CreateEvent() {
             formData={formData}
             onInputChange={updateFormData}
             imagePreview={imagePreview}
+            rawPreview={rawPreview}
+            rawFileName={rawFileName}
+            needsAdjust={needsAdjust}
             onImageChange={handleImageChange}
+            onApplyAdjusted={applyAdjustedImage}
+            onReAdjust={reAdjust}
             onRemoveImage={handleRemoveImage}
           />
         );
@@ -194,24 +213,57 @@ export default function CreateEvent() {
 
           {renderStepContent()}
 
+          {/* Publish gate: events only go live once Stripe is connected */}
+          {!isCompleted && isLastStep() && !stripeLoading && !canAcceptPayments && (
+            <Card className="mt-6 border-primary/30 bg-primary/5">
+              <CardContent className="p-6">
+                <div className="flex items-start gap-4">
+                  <div className="p-3 rounded-full bg-primary/10 shrink-0">
+                    <Lock className="h-5 w-5 text-primary" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-semibold mb-1">One last thing: connect your payout account</p>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      Your event only goes public once your Stripe account is connected -
+                      that's how you get paid. It takes about 2 minutes, Stripe handles it
+                      securely, and your event details are saved while you do it.
+                    </p>
+                    <Button onClick={startOnboarding} disabled={stripeConnecting}>
+                      {stripeConnecting ? (
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      ) : (
+                        <CreditCard className="h-4 w-4 mr-2" />
+                      )}
+                      {stripeConnecting ? "Opening Stripe..." : "Connect Stripe to publish"}
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           {!isCompleted && (
             <div className="p-6 flex justify-between space-x-4 flex-shrink-0">
               <Button
                 type="button"
                 variant="outline"
-                disabled={!canGoBack() || loading}
-                onClick={() => prevStep()}
-                className={`flex-1 ${canGoBack() && !loading ? "" : "cursor-not-allowed"}`}
+                disabled={loading}
+                onClick={() => (canGoBack() ? prevStep() : navigate(-1))}
+                className="flex-1"
               >
                 Back
               </Button>
 
               <Button
                 onClick={isLastStep() ? handleFinalize : nextStep}
-                disabled={(!canProceedToNext() && !isLastStep()) || loading}
+                disabled={
+                  (!canProceedToNext() && !isLastStep()) ||
+                  loading ||
+                  (isLastStep() && (stripeLoading || !canAcceptPayments))
+                }
                 className={`flex-1 ${(canProceedToNext() || isLastStep()) && !loading ? "" : "cursor-not-allowed"}`}
               >
-                {loading ? "Creating..." : isLastStep() ? "Create event" : "Next"}
+                {loading ? "Creating..." : isLastStep() ? "Publish event" : "Next"}
               </Button>
             </div>
           )}

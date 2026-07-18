@@ -10,7 +10,9 @@ load_dotenv()
 
 SECRET_KEY = os.getenv("SECRET_KEY", "fallback")
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
+# 7 days: hosts write long meal descriptions and Stripe onboarding round-trips;
+# a 30-minute token was logging people out mid-form (beta feedback, July 2026)
+ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7
 
 
 def hash_password(password: str) -> str:

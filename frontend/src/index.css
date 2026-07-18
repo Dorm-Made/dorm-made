@@ -1,46 +1,49 @@
-@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Dorm Made Design System - Food Marketplace Theme
-All colors MUST be HSL. Red primary with food-inspired palette.
-*/
+/* Dorm Made Design System - SINGLE SOURCE OF TRUTH for colors.
+   Palette: hot red + bold black + white. Nothing else.
+   Every color in the app must come from these tokens (all HSL).
+   Landing page and app share this file - do not fork palettes. */
 
 @layer base {
   :root {
-    --background: 0 0% 98%;
-    --foreground: 0 0% 5%;
+    /* Surfaces: pure white, near-black text */
+    --background: 0 0% 100%;
+    --foreground: 0 0% 7%;
 
     --card: 0 0% 100%;
-    --card-foreground: 0 0% 5%;
+    --card-foreground: 0 0% 7%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 5%;
+    --popover-foreground: 0 0% 7%;
 
-    /* Red primary for Dorm Made brand */
-    --primary: 0 84% 55%;
-    --primary-foreground: 0 0% 98%;
-    --primary-glow: 0 84% 65%;
+    /* Hot red - the brand color */
+    --primary: 0 90% 51%;
+    --primary-foreground: 0 0% 100%;
+    --primary-glow: 0 90% 62%;
 
-    /* Warm secondary colors */
-    --secondary: 40 95% 95%;
-    --secondary-foreground: 0 0% 10%;
+    /* Bold black as the secondary action color */
+    --secondary: 0 0% 7%;
+    --secondary-foreground: 0 0% 100%;
 
-    --muted: 30 40% 96%;
-    --muted-foreground: 0 0% 45%;
+    /* Neutral grays (no warm/cream tints) */
+    --muted: 0 0% 96%;
+    --muted-foreground: 0 0% 42%;
 
-    /* Yellow accent for food theme */
-    --accent: 45 100% 88%;
-    --accent-foreground: 0 0% 10%;
+    /* Faint red tint for hovers and highlights */
+    --accent: 0 90% 97%;
+    --accent-foreground: 0 0% 7%;
 
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 0 0% 98%;
+    --destructive: 0 90% 45%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 20 13% 91%;
-    --input: 20 13% 91%;
-    --ring: 0 84% 55%;
+    --border: 0 0% 89%;
+    --input: 0 0% 89%;
+    --ring: 0 90% 51%;
 
     --radius: 0.75rem;
 
@@ -55,7 +58,8 @@ All colors MUST be HSL. Red primary with food-inspired palette.
   }
 
   body {
-    background: #e498982a;
+    background: hsl(var(--background));
+    color: hsl(var(--foreground));
   }
 }
 

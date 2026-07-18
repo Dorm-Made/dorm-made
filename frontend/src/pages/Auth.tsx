@@ -10,17 +10,29 @@ import { useLocation, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/hooks/use-auth";
 import { usePasswordToggle } from "@/hooks/use-password-toggle";
 
+const SIGNUP_DRAFT_KEY = "signupDraft";
+
+function readSignupDraft(): Record<string, string> {
+  try {
+    return JSON.parse(localStorage.getItem(SIGNUP_DRAFT_KEY) || "{}");
+  } catch {
+    return {};
+  }
+}
+
 export default function Auth() {
   const [searchParams] = useSearchParams();
-  // Prefill support: the landing page hands visitors off to
-  // /signup?firstName=..&email=..&university=.. so they never retype
+  // Prefill priority: URL params (invite links, landing handoff) > saved draft
+  // (anything the visitor already typed anywhere on the site) > empty.
+  // Never make someone type their name or email twice.
+  const draft = readSignupDraft();
   const [formData, setFormData] = useState({
-    firstName: searchParams.get("firstName") || "",
-    lastName: searchParams.get("lastName") || "",
-    email: searchParams.get("email") || "",
+    firstName: searchParams.get("firstName") || draft.firstName || "",
+    lastName: searchParams.get("lastName") || draft.lastName || "",
+    email: searchParams.get("email") || draft.email || localStorage.getItem("userEmail") || "",
     password: "",
-    university: searchParams.get("university") || "",
-    inviteCode: searchParams.get("invite") || "",
+    university: searchParams.get("university") || draft.university || "",
+    inviteCode: searchParams.get("invite") || draft.inviteCode || "",
   });
 
   const location = useLocation();
@@ -32,10 +44,14 @@ export default function Auth() {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+    setFormData((prev) => {
+      const next = { ...prev, [name]: value };
+      // Persist everything except the password so refreshes, tab switches,
+      // and signup->login hops keep the data filled in
+      const { password: _password, ...rest } = next;
+      localStorage.setItem(SIGNUP_DRAFT_KEY, JSON.stringify(rest));
+      return next;
+    });
   };
 
   const handleSignUp = async (e: React.FormEvent) => {
@@ -91,6 +107,7 @@ export default function Auth() {
                           value={formData.firstName}
                           onChange={handleInputChange}
                           placeholder="John"
+                          maxLength={40}
                           required
                         />
                       </div>
@@ -102,6 +119,7 @@ export default function Auth() {
                           value={formData.lastName}
                           onChange={handleInputChange}
                           placeholder="Doe"
+                          maxLength={40}
                           required
                         />
                       </div>
@@ -134,6 +152,7 @@ export default function Auth() {
                         value={formData.university}
                         onChange={handleInputChange}
                         placeholder="University of Example"
+                        maxLength={80}
                         required
                       />
                     </div>

@@ -17,6 +17,7 @@ import { ReferredByChip } from "@/components/referral/ReferredByChip";
 import { InviteCard } from "@/components/referral/InviteCard";
 import { TasteProfileCard } from "@/components/profile/TasteProfileCard";
 import { analytics } from "@/lib/analytics";
+import { LIMITS, charCount } from "@/lib/limits";
 import {
   GraduationCap,
   User as UserIcon,
@@ -60,11 +61,22 @@ export default function Profile() {
     if (stripeParam === "complete" && !hasShownStripeToast.current) {
       hasShownStripeToast.current = true;
 
+      // If they left an event half-created to connect Stripe, point them back
+      let hasEventDraft = false;
+      try {
+        const draft = JSON.parse(localStorage.getItem("eventDraft") || "null");
+        hasEventDraft = Boolean(draft && draft.title);
+      } catch {
+        hasEventDraft = false;
+      }
+
       toast({
         title: "Stripe Onboarding Complete!",
-        description: "Your payment account has been connected. Checking status...",
+        description: hasEventDraft
+          ? "Your payment account is connected. Your event draft is saved - tap Host event to finish publishing it."
+          : "Your payment account has been connected. Checking status...",
         className: "bg-green-500 text-white border-green-600",
-        duration: 3000,
+        duration: hasEventDraft ? 6000 : 3000,
       });
 
       const userStr = localStorage.getItem("currentUser");
@@ -293,6 +305,7 @@ export default function Profile() {
                           value={editingUser?.university || ""}
                           onChange={(e) => updateEditingUser({ university: e.target.value })}
                           placeholder="Enter your university"
+                          maxLength={LIMITS.UNIVERSITY}
                         />
                       </div>
 
@@ -307,8 +320,12 @@ export default function Profile() {
                           onChange={(e) => updateEditingUser({ description: e.target.value })}
                           placeholder="Tell us about yourself..."
                           rows={4}
+                          maxLength={LIMITS.PROFILE_ABOUT}
                           className="resize-none"
                         />
+                        <p className="text-xs text-muted-foreground mt-1 text-right">
+                          {charCount(editingUser?.description, LIMITS.PROFILE_ABOUT)}
+                        </p>
                       </div>
 
                       <div>

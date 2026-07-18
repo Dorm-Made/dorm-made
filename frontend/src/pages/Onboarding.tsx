@@ -121,14 +121,33 @@ export default function Onboarding() {
             {result.taste_description}
           </p>
           <p className="text-xs text-muted-foreground">
-            This shows on your profile — you can retake the quiz anytime from there.
+            This shows on your profile - you can retake the quiz anytime from there.
           </p>
-          <Button
-            className="w-full bg-gradient-to-r from-primary to-primary-glow"
-            onClick={() => navigate("/explore")}
-          >
-            Start exploring 🍳
-          </Button>
+          {isRetake ? (
+            <Button
+              className="w-full bg-gradient-to-r from-primary to-primary-glow"
+              onClick={() => navigate("/explore")}
+            >
+              Start exploring 🍳
+            </Button>
+          ) : (
+            <div className="space-y-3">
+              <Button
+                className="w-full bg-gradient-to-r from-primary to-primary-glow"
+                onClick={() => navigate("/create-meal")}
+              >
+                Post your first meal 🍳
+              </Button>
+              <Button variant="outline" className="w-full" onClick={() => navigate("/explore")}>
+                Explore events instead
+              </Button>
+              <p className="text-xs text-muted-foreground pt-1">
+                Hosting? You'll connect a Stripe account to get paid - your events only go
+                public once it's connected. You can do it anytime from your profile's
+                Payments tab.
+              </p>
+            </div>
+          )}
         </div>
       </div>
     );
@@ -183,7 +202,7 @@ export default function Onboarding() {
       <div className="flex-1 flex flex-col items-center justify-center px-4 pb-10 max-w-2xl mx-auto w-full">
         <div className="text-center mb-6">
           <p className="text-sm text-muted-foreground mb-1">
-            {current === 0 ? "Let's learn your taste — tap what you'd rather eat" : "This or that?"}
+            {current === 0 ? "Let's learn your taste - tap what you'd rather eat" : "This or that?"}
           </p>
           <h1 className="text-2xl lg:text-3xl font-bold">{question.prompt}</h1>
         </div>

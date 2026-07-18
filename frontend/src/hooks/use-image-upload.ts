@@ -9,7 +9,16 @@ interface UseImageUploadOptions {
 interface UseImageUploadReturn {
   selectedImage: File | null;
   imagePreview: string | null;
+  /** Raw (un-cropped) data URL of the picked file - source for the adjuster */
+  rawPreview: string | null;
+  rawFileName: string | null;
+  /** True right after picking a file, before the crop has been saved */
+  needsAdjust: boolean;
   handleImageChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  /** Called by ImageAdjuster with the baked crop */
+  applyAdjustedImage: (file: File, dataUrl: string) => void;
+  /** Re-open the adjuster for the already-picked image */
+  reAdjust: () => void;
   handleRemoveImage: () => void;
   resetImage: () => void;
 }
@@ -20,6 +29,9 @@ export function useImageUpload(options: UseImageUploadOptions = {}): UseImageUpl
 
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [rawPreview, setRawPreview] = useState<string | null>(null);
+  const [rawFileName, setRawFileName] = useState<string | null>(null);
+  const [needsAdjust, setNeedsAdjust] = useState(false);
   const { toast } = useToast();
 
   const handleImageChange = useCallback(
@@ -49,31 +61,51 @@ export function useImageUpload(options: UseImageUploadOptions = {}): UseImageUpl
       }
 
       setSelectedImage(file);
+      setRawFileName(file.name);
 
       const reader = new FileReader();
       reader.onloadend = () => {
-        setImagePreview(reader.result as string);
+        const dataUrl = reader.result as string;
+        setRawPreview(dataUrl);
+        setImagePreview(dataUrl);
+        setNeedsAdjust(true); // open the zoom/reposition editor
       };
       reader.readAsDataURL(file);
+
+      // allow re-picking the same file
+      e.target.value = "";
     },
     [allowedTypes, maxSizeMB, toast],
   );
 
-  const handleRemoveImage = useCallback(() => {
-    setSelectedImage(null);
-    setImagePreview(null);
+  const applyAdjustedImage = useCallback((file: File, dataUrl: string) => {
+    setSelectedImage(file);
+    setImagePreview(dataUrl);
+    setNeedsAdjust(false);
   }, []);
 
-  const resetImage = useCallback(() => {
+  const reAdjust = useCallback(() => {
+    setNeedsAdjust(true);
+  }, []);
+
+  const clearAll = useCallback(() => {
     setSelectedImage(null);
     setImagePreview(null);
+    setRawPreview(null);
+    setRawFileName(null);
+    setNeedsAdjust(false);
   }, []);
 
   return {
     selectedImage,
     imagePreview,
+    rawPreview,
+    rawFileName,
+    needsAdjust,
     handleImageChange,
-    handleRemoveImage,
-    resetImage,
+    applyAdjustedImage,
+    reAdjust,
+    handleRemoveImage: clearAll,
+    resetImage: clearAll,
   };
 }

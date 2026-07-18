@@ -57,14 +57,30 @@ export function useAuth(): UseAuthReturn {
 
         analytics.userSignedUp(user.id);
 
+        // Log the new user in immediately - no bounce through the login screen
+        // (beta feedback: people had to retype their name and email)
+        const loginResponse = await authService.loginUser({
+          email: data.email,
+          password: data.password,
+        });
+
+        authService.setAuthToken(loginResponse.access_token);
+        localStorage.setItem("currentUser", JSON.stringify(loginResponse.user));
+        localStorage.setItem("userEmail", loginResponse.user.email);
+        localStorage.removeItem("signupDraft");
+
+        analytics.userLoggedIn(loginResponse.user.id);
+        window.dispatchEvent(new CustomEvent("userLogin"));
+
         toast({
-          title: "Success!",
-          description: "Account created successfully! Please log in to continue.",
+          title: "Welcome to Dorm Made!",
+          description: "Account created. Let's set you up.",
           className: "bg-green-500 text-white border-green-600",
           duration: 1500,
         });
 
-        navigate("/login");
+        // New accounts always start at the taste quiz onboarding
+        navigate("/onboarding");
       } catch (error) {
         toast({
           title: "Error",

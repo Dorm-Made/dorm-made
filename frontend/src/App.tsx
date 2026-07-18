@@ -10,15 +10,17 @@ import NotFound from "./pages/NotFound";
 import CreateMeal from "./pages/CreateMeal";
 import Onboarding from "./pages/Onboarding";
 import { OnboardingRedirect } from "./components/onboarding/OnboardingRedirect";
+import { SplashScreen } from "./components/layout/SplashScreen";
 
 const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <BrowserRouter>
+      <SplashScreen />
       <OnboardingRedirect />
-      <div className="min-h-screen">
-        <div className="max-w-[1400px] mx-auto bg-primary-foreground min-h-screen shadow-elegant">
+      <div className="min-h-screen bg-background">
+        <div className="max-w-[1400px] mx-auto min-h-screen">
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/explore" element={<Explore />} />

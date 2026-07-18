@@ -12,16 +12,31 @@ export interface MealFormData {
   ingredients: string;
 }
 
+const MEAL_DRAFT_KEY = "mealDraft";
+
+function readMealDraft(): MealFormData {
+  try {
+    const stored = JSON.parse(localStorage.getItem(MEAL_DRAFT_KEY) || "null");
+    if (stored && typeof stored === "object") {
+      return {
+        name: stored.name || "",
+        description: stored.description || "",
+        ingredients: stored.ingredients || "",
+      };
+    }
+  } catch {
+    // corrupted draft - start fresh
+  }
+  return { name: "", description: "", ingredients: "" };
+}
+
 export function useCreateMealForm() {
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
 
-  const [formData, setFormData] = useState<MealFormData>({
-    name: "",
-    description: "",
-    ingredients: "",
-  });
+  // Drafts survive tab closes, session timeouts, and accidental navigation
+  const [formData, setFormData] = useState<MealFormData>(readMealDraft);
 
   const [selectedMeal, setSelectedMeal] = useState<Meal | null>(null);
 
@@ -41,7 +56,11 @@ export function useCreateMealForm() {
   }, [navigate, toast]);
 
   const updateFormData = useCallback((updates: Partial<MealFormData>) => {
-    setFormData((prev) => ({ ...prev, ...updates }));
+    setFormData((prev) => {
+      const next = { ...prev, ...updates };
+      localStorage.setItem(MEAL_DRAFT_KEY, JSON.stringify(next));
+      return next;
+    });
   }, []);
 
   const setMeal = useCallback((meal: Meal | null) => {
@@ -112,14 +131,17 @@ export function useCreateMealForm() {
         const user: User = JSON.parse(currentUser);
         analytics.mealCreated({ userId: user.id, meal });
 
+        localStorage.removeItem(MEAL_DRAFT_KEY);
+
         toast({
-          title: "Success!",
-          description: "Meal created successfully!",
+          title: "Meal created!",
+          description: "It's on your profile. Add a photo and a short bio so foodies know who's cooking.",
           className: "bg-green-500 text-white border-green-600",
-          duration: 1500,
+          duration: 4000,
         });
 
-        navigate("/create-event");
+        // Land on the profile dashboard (My Meals tab) - no surprise detours
+        navigate(`/profile/${user.id}?tab=meals`);
       } catch (error) {
         toast({
           title: "Error",

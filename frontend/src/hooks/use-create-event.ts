@@ -1,7 +1,6 @@
 import { useState, useCallback, useMemo } from "react";
 
 export enum Step {
-  STRIPE_CHECK = "STRIPE_CHECK",
   MEAL = "MEAL",
   EVENT_DETAILS = "EVENT_DETAILS",
   SUMMARY = "SUMMARY",
@@ -11,7 +10,9 @@ export function useCreateEvent() {
   const [currentStep, setCurrentStep] = useState<Step>(Step.MEAL);
   const [isCompleted, setIsCompleted] = useState<boolean>(false);
 
-  const steps = useMemo(() => [Step.MEAL, Step.STRIPE_CHECK, Step.EVENT_DETAILS, Step.SUMMARY], []);
+  // Stripe is no longer a wizard step: the summary screen gates publishing
+  // instead ("your event goes public once Stripe is connected")
+  const steps = useMemo(() => [Step.MEAL, Step.EVENT_DETAILS, Step.SUMMARY], []);
 
   const getCurrentStepIndex = useCallback(() => {
     return steps.indexOf(currentStep);
