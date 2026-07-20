@@ -1,13 +1,14 @@
 import { httpClient, getAuthToken } from "./http-client";
-import { User, UserCreate, UserUpdate } from "@/types";
+import { PublicUser, User, UserCreate, UserUpdate } from "@/types";
+import { LoginResponse } from "@/types/auth.types";
 import { StripeLoginLinkResponse } from "@/types/stripe.types";
 
-async function createUser(userData: UserCreate): Promise<User> {
+async function createUser(userData: UserCreate): Promise<LoginResponse> {
   const response = await httpClient.post("/users/", userData);
   return response.data;
 }
 
-async function getUser(userId: string): Promise<User> {
+async function getUser(userId: string): Promise<PublicUser> {
   const response = await httpClient.get(`/users/${userId}`);
   return response.data;
 }
@@ -27,6 +28,11 @@ async function uploadProfilePicture(userId: string, file: File): Promise<User> {
   return response.data;
 }
 
+async function getCurrentUser(): Promise<User> {
+  const response = await httpClient.get("/users/me");
+  return response.data;
+}
+
 async function getStripeLoginLink(): Promise<StripeLoginLinkResponse> {
   const response = await httpClient.get("/users/stripe/login");
   return response.data;
@@ -35,6 +41,7 @@ async function getStripeLoginLink(): Promise<StripeLoginLinkResponse> {
 export const userService = {
   createUser,
   getUser,
+  getCurrentUser,
   updateUser,
   uploadProfilePicture,
   getStripeLoginLink,

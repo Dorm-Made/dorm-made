@@ -46,9 +46,7 @@ async def list_meals_endpoint(
     """List all meals, optionally filtered by user_id"""
     if user_id:
         return await meal_service.get_user_meals(user_id, db)
-    # If you have a list_all_meals service method, use it here
-    # For now, returning empty list or you can implement list_all
-    return []
+    return await meal_service.list_all_meals(db)
 
 
 @router.get("/{meal_id}", response_model=Meal, response_model_by_alias=True)

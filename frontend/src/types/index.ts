@@ -1,6 +1,6 @@
 export type { UserLogin, Token, LoginResponse } from "./auth.types";
 
-export type { User, UserCreate, UserUpdate } from "./user.types";
+export type { User, PublicUser, UserCreate, UserUpdate } from "./user.types";
 
 export type { Meal, MealCreate, MealUpdate } from "./meal.types";
 

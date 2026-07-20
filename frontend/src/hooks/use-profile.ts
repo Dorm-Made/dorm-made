@@ -50,7 +50,20 @@ export function useProfile(userId?: string): UseProfileReturn {
 
       try {
         setLoading(true);
-        const userData = await userService.getUser(targetUserId);
+        // Own profile: full data from /users/me. Others: public profile only
+        // (no email/Stripe/referral fields - the API no longer exposes them).
+        let isSelf = false;
+        const currentUserStr = localStorage.getItem("currentUser");
+        if (currentUserStr) {
+          try {
+            isSelf = JSON.parse(currentUserStr).id === targetUserId;
+          } catch (e) {
+            isSelf = false;
+          }
+        }
+        const userData = isSelf
+          ? await userService.getCurrentUser()
+          : ((await userService.getUser(targetUserId)) as unknown as User);
         setUser(userData);
         setEditingUser({ ...userData });
         await loadUserEvents(userData.id);
@@ -71,8 +84,8 @@ export function useProfile(userId?: string): UseProfileReturn {
         }
 
         toast({
-          title: "Erro",
-          description: getErrorMessage(error, "Não foi possível carregar o perfil do usuário"),
+          title: "Error",
+          description: getErrorMessage(error, "Unable to load user profile"),
           variant: "destructive",
           duration: 1500,
         });
@@ -92,7 +105,7 @@ export function useProfile(userId?: string): UseProfileReturn {
         const updatedUser = await userService.updateUser(targetUserId, {
           university: editingUser.university || null,
           description: editingUser.description || null,
-          profile_picture: editingUser.profile_picture || null,
+          profilePicture: editingUser.profilePicture || null,
         });
 
         setUser(updatedUser);
@@ -102,14 +115,14 @@ export function useProfile(userId?: string): UseProfileReturn {
         localStorage.setItem("currentUser", JSON.stringify(updatedUser));
 
         toast({
-          title: "Sucesso!",
+          title: "Success!",
           description: "Profile successfully updated",
           className: "bg-green-500 text-white border-green-600",
           duration: 1500,
         });
       } catch (error) {
         toast({
-          title: "Erro",
+          title: "Error",
           description: getErrorMessage(error, "Unable to update profile"),
           variant: "destructive",
           duration: 1500,

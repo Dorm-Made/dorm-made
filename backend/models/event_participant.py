@@ -1,4 +1,4 @@
-from sqlalchemy import String, DateTime, ForeignKey, Text, CheckConstraint
+from sqlalchemy import String, DateTime, ForeignKey, Text, CheckConstraint, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.sql import func
@@ -26,9 +26,13 @@ class EventParticipantModel(Base):
     payment_intent_id: Mapped[Optional[str]] = mapped_column(Text, nullable=True, index=True)
     status: Mapped[str] = mapped_column(String, nullable=False, default="booked", server_default="booked")
     refunded_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    confirmed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
 
     __table_args__ = (
         CheckConstraint(
             "status IN ('confirmed', 'cancelled', 'booked')", name="valid_status"
+        ),
+        UniqueConstraint(
+            "event_id", "participant_id", name="uq_event_participant"
         ),
     )

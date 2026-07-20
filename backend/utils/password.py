@@ -8,7 +8,11 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
-SECRET_KEY = os.getenv("SECRET_KEY", "fallback")
+SECRET_KEY = os.getenv("SECRET_KEY")
+if not SECRET_KEY:
+    raise ValueError(
+        "SECRET_KEY not set in environment - refusing to start with an insecure JWT signing key"
+    )
 ALGORITHM = "HS256"
 # 7 days: hosts write long meal descriptions and Stripe onboarding round-trips;
 # a 30-minute token was logging people out mid-form (beta feedback, July 2026)
@@ -49,8 +53,8 @@ def verify_token(token: str):
     """Verify and decode JWT token"""
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        user_id: str = payload.get("userId") or ""
-        if user_id is None:
+        user_id = payload.get("userId")
+        if not user_id:
             raise HTTPException(status_code=401, detail="Invalid token")
         return user_id
     except JWTError:

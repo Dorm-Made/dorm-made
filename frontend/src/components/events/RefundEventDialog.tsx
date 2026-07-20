@@ -25,7 +25,7 @@ export function RefundEventDialog({
   loading,
   onConfirmRefund,
 }: RefundEventDialogProps) {
-  const refundAmountDollars = ((event.price * 0.70) / 100).toFixed(2);
+  const priceDollars = (event.price / 100).toFixed(2);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -46,17 +46,19 @@ export function RefundEventDialog({
           </p>
 
           <div className="bg-muted/50 p-4 rounded-md mb-3 space-y-2">
-            <p className="text-sm font-semibold">Refund Policy:</p>
+            <p className="text-sm font-semibold">Cancellation Policy:</p>
             <ul className="text-sm text-muted-foreground space-y-1 list-disc list-inside">
-              <li>You will receive a 70% refund (${refundAmountDollars})</li>
-              <li>Must be within 12 hours of your reservation</li>
-              <li>Must be at least 24 hours before the event starts</li>
+              <li>
+                Before the host confirms your seat: cancel free - your card
+                is never charged (${priceDollars} hold is released)
+              </li>
+              <li>After the host confirms: bookings are final</li>
+              <li>If the host cancels the event, you get a full refund</li>
             </ul>
           </div>
 
           <p className="text-sm text-muted-foreground">
-            This action cannot be undone. If you don't meet the eligibility requirements, the
-            refund will be denied.
+            This action cannot be undone.
           </p>
         </DialogDescription>
 

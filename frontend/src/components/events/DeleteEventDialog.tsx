@@ -43,20 +43,21 @@ export function DeleteEventDialog({
           {hasParticipants ? (
             <>
               <p className="text-base mb-3">
-                The event <span className="font-semibold">"{event.title}"</span> has participants and
-                cannot be deleted directly.
+                <span className="font-semibold">"{event.title}"</span> has booked guests. Cancelling
+                the event will automatically refund every one of them in full.
               </p>
               <p className="text-sm text-muted-foreground mb-3">
-                To delete an event with participants, please contact our support team at{" "}
+                Confirmed guests get their payment refunded; pending requests are released without
+                charge. This can hurt your host reputation - only cancel if you really have to.
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Questions? Contact{" "}
                 <a
                   href="mailto:support@dormmade.com"
                   className="text-primary hover:underline font-medium"
                 >
                   support@dormmade.com
                 </a>
-              </p>
-              <p className="text-sm text-muted-foreground">
-                Our team will help you handle participant refunds and event cancellation properly.
               </p>
             </>
           ) : (
@@ -73,32 +74,26 @@ export function DeleteEventDialog({
         </DialogDescription>
 
         <DialogFooter>
-          {hasParticipants ? (
-            <Button type="button" variant="outline" onClick={onClose}>
-              Close
-            </Button>
-          ) : (
-            <>
-              <Button type="button" variant="outline" onClick={onClose} disabled={loading}>
-                Cancel
-              </Button>
-              <Button
-                type="button"
-                variant="destructive"
-                onClick={onConfirmDelete}
-                disabled={loading}
-              >
-                {loading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Deleting...
-                  </>
-                ) : (
-                  "Delete Event"
-                )}
-              </Button>
-            </>
-          )}
+          <Button type="button" variant="outline" onClick={onClose} disabled={loading}>
+            Keep Event
+          </Button>
+          <Button
+            type="button"
+            variant="destructive"
+            onClick={onConfirmDelete}
+            disabled={loading}
+          >
+            {loading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                {hasParticipants ? "Cancelling & refunding..." : "Deleting..."}
+              </>
+            ) : hasParticipants ? (
+              "Cancel Event & Refund All"
+            ) : (
+              "Delete Event"
+            )}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

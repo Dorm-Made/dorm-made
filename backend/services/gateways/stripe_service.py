@@ -181,3 +181,24 @@ async def generate_login_link(stripe_account_id: str) -> str:
 
 async def capture_payment_intent(payment_intent_id: str):
     await stripe.PaymentIntent.capture_async(payment_intent_id)
+
+
+async def cancel_payment_intent(payment_intent_id: str):
+    """Cancel (void) an uncaptured PaymentIntent. No Stripe fees are incurred
+    because the charge was never captured."""
+    await stripe.PaymentIntent.cancel_async(payment_intent_id)
+
+
+async def create_refund(
+    payment_intent_id: str, amount_cents: int | None = None
+) -> Dict[str, Any]:
+    """Refund a captured PaymentIntent. amount_cents=None refunds in full.
+    reverse_transfer claws back the chef's share of the transfer."""
+    kwargs: Dict[str, Any] = {
+        "payment_intent": payment_intent_id,
+        "reverse_transfer": True,
+    }
+    if amount_cents is not None:
+        kwargs["amount"] = amount_cents
+    refund = await stripe.Refund.create_async(**kwargs)
+    return {"id": refund.id, "status": refund.status}

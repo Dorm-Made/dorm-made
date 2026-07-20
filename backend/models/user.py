@@ -32,7 +32,9 @@ class UserModel(Base):
     # Taste profile (onboarding quiz)
     taste_archetype: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     taste_description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    taste_picks: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # JSON list of image ids
+    # JSON list of image ids stored as text; consider migrating to JSONB the
+    # next time a migration touches the users table
+    taste_picks: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     onboarding_completed: Mapped[bool] = mapped_column(
         Boolean, default=False, server_default="false", nullable=False
     )

@@ -36,7 +36,7 @@ class EventModel(Base):
     event_date: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     image_url: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     price: Mapped[int] = mapped_column(INTEGER, nullable=False)
-    is_deleted: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    is_deleted: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     currency: Mapped[str] = mapped_column(Text, default="usd", server_default="usd", nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False

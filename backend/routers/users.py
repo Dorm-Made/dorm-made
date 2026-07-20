@@ -3,7 +3,14 @@ from typing import List, Annotated
 from sqlalchemy.orm import Session
 import logging
 
-from schemas.user import User, UserCreate, UserLogin, UserUpdate, LoginResponse
+from schemas.user import (
+    User,
+    UserCreate,
+    UserLogin,
+    UserUpdate,
+    LoginResponse,
+    PublicUser,
+)
 from schemas.stripe import (
     StripeConnectResponse,
     StripeLoginLinkResponse,
@@ -18,6 +25,18 @@ from services.gateways import stripe_service
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/users", tags=["users"])
+
+
+@router.get("/me", response_model=User)
+async def get_current_user_endpoint(
+    current_user_id: Annotated[str, Depends(get_current_user_id)],
+    db: Session = Depends(get_db),
+):
+    """Get the authenticated user's own full profile"""
+    user = await user_service.get_user(current_user_id, db)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    return user
 
 
 @router.post("/stripe/connect", response_model=StripeConnectResponse)
@@ -97,9 +116,9 @@ async def get_stripe_login_link(
     return StripeLoginLinkResponse(account_url=url)
 
 
-@router.post("/", response_model=User)
+@router.post("/", response_model=LoginResponse)
 async def create_user_endpoint(user: UserCreate, db: Session = Depends(get_db)):
-    """Create a new user"""
+    """Create a new user and log them straight in (returns token + user)"""
     return await user_service.create_user(user, db)
 
 
@@ -120,7 +139,7 @@ async def upload_profile_picture_endpoint(
     if current_user_id != user_id:
         raise HTTPException(
             status_code=403,
-            detail="Você só pode fazer upload da sua própria foto de perfil",
+            detail="You can only upload your own profile picture",
         )
 
     return await user_service.upload_profile_picture(user_id, image, db)
@@ -142,9 +161,9 @@ async def update_user_profile_endpoint(
     return await user_service.update_user(user_id, user_update, db)
 
 
-@router.get("/{user_id}", response_model=User)
+@router.get("/{user_id}", response_model=PublicUser)
 async def get_user_by_id_endpoint(user_id: str, db: Session = Depends(get_db)):
-    """Get user by ID"""
+    """Get a user's PUBLIC profile (no email, Stripe, or referral data)"""
     user = await user_service.get_user(user_id, db)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")

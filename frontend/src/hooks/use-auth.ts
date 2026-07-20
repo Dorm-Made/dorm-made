@@ -50,21 +50,15 @@ export function useAuth(): UseAuthReturn {
           email: data.email,
           university: data.university,
           password: data.password,
-          invite_code: data.inviteCode?.trim() || undefined,
+          inviteCode: data.inviteCode?.trim() || undefined,
         };
 
-        const user = await userService.createUser(userData);
+        // Signup returns token + user in one call - no separate login round-trip
+        const loginResponse = await userService.createUser(userData);
 
-        analytics.userSignedUp(user.id);
+        analytics.userSignedUp(loginResponse.user.id);
 
-        // Log the new user in immediately - no bounce through the login screen
-        // (beta feedback: people had to retype their name and email)
-        const loginResponse = await authService.loginUser({
-          email: data.email,
-          password: data.password,
-        });
-
-        authService.setAuthToken(loginResponse.access_token);
+        authService.setAuthToken(loginResponse.accessToken);
         localStorage.setItem("currentUser", JSON.stringify(loginResponse.user));
         localStorage.setItem("userEmail", loginResponse.user.email);
         localStorage.removeItem("signupDraft");
@@ -115,7 +109,7 @@ export function useAuth(): UseAuthReturn {
           password: data.password,
         });
 
-        authService.setAuthToken(loginResponse.access_token);
+        authService.setAuthToken(loginResponse.accessToken);
 
         localStorage.setItem("currentUser", JSON.stringify(loginResponse.user));
         localStorage.setItem("userEmail", loginResponse.user.email);
@@ -132,7 +126,7 @@ export function useAuth(): UseAuthReturn {
         });
 
         // First login: taste-quiz onboarding is not skippable
-        if (!loginResponse.user.onboarding_completed) {
+        if (!loginResponse.user.onboardingCompleted) {
           navigate("/onboarding");
         } else {
           navigate("/explore");

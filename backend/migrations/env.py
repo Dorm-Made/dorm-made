@@ -26,6 +26,8 @@ from models.user import UserModel
 from models.meal import MealModel
 from models.event import EventModel
 from models.event_participant import EventParticipantModel
+from models.event_review import EventReviewModel
+from models.guest_review import GuestReviewModel
 
 # Set target_metadata to our Base.metadata for autogenerate support
 target_metadata = Base.metadata

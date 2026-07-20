@@ -4,24 +4,64 @@ from sqlalchemy import desc
 from sqlalchemy.orm import Session
 from datetime import datetime, timezone
 import uuid
-import stripe
 from stripe import StripeError, InvalidRequestError
 import logging
 
 from models.event import EventModel
 from models.event_participant import EventParticipantModel
+from models.meal import MealModel
 from models.user import UserModel
 from schemas.event import Event, EventCreate, EventUpdate
 from schemas.event_participant import EventParticipant, EventParticipantUser
 from schemas.refund import RefundResponse
 from utils.converters import event_model_to_schema, event_participant_models_to_schemas
 from utils.supabase import supabase
+from utils.uploads import upload_image
 from .user_service import get_user
 from .meal_service import get_meal_name
-from .gateways.stripe_service import capture_payment_intent
-from .gateways.stripe_service import retrieve_connected_account
+from .gateways.stripe_service import (
+    capture_payment_intent,
+    cancel_payment_intent,
+    create_refund,
+    retrieve_connected_account,
+)
 
 logger = logging.getLogger(__name__)
+
+# Statuses that hold (or may hold) a seat. Capacity checks COUNT these rows;
+# EventModel.current_participants is only a denormalized mirror.
+ACTIVE_STATUSES = ("booked", "confirmed")
+
+
+def _as_utc(dt: datetime) -> datetime:
+    """Treat naive datetimes as UTC (SQLite test dbs return naive values)."""
+    return dt if dt.tzinfo is not None else dt.replace(tzinfo=timezone.utc)
+
+
+def count_active_participants(event_id: str, db: Session) -> int:
+    return (
+        db.query(EventParticipantModel)
+        .filter(
+            EventParticipantModel.event_id == event_id,
+            EventParticipantModel.status.in_(ACTIVE_STATUSES),
+        )
+        .count()
+    )
+
+
+def _events_with_meal_query(db: Session):
+    """Base query joining events with meal titles in a single round-trip."""
+    return db.query(EventModel, MealModel.title).outerjoin(
+        MealModel,
+        (MealModel.id == EventModel.meal_id) & (MealModel.is_deleted == False),
+    )
+
+
+def _rows_to_schemas(rows) -> List[Event]:
+    return [
+        event_model_to_schema(event_model, meal_title or "")
+        for event_model, meal_title in rows
+    ]
 
 
 def get_event(event_id: str, db: Session) -> Optional[Event]:
@@ -63,42 +103,8 @@ def is_user_participating(event_id: str, user_id: str, db: Session) -> bool:
 
 
 async def upload_event_image(image: UploadFile) -> str:
-    """Upload an event image to Supabase Storage and return the public URL"""
-    try:
-        # Validate file type
-        allowed_types = ["image/jpeg", "image/jpg", "image/png", "image/webp"]
-        if image.content_type not in allowed_types:
-            raise HTTPException(
-                status_code=400,
-                detail="Invalid file type. Only JPEG, PNG, and WebP images are allowed.",
-            )
-
-        # Validate file size (5MB max)
-        contents = await image.read()
-        if len(contents) > 5 * 1024 * 1024:  # 5MB in bytes
-            raise HTTPException(status_code=400, detail="File size exceeds 5MB limit.")
-
-        # Generate unique filename
-        file_extension = image.filename.split(".")[-1] if image.filename else "jpg"
-        unique_filename = (
-            f"{uuid.uuid4()}_{int(datetime.now().timestamp())}.{file_extension}"
-        )
-
-        # Upload to Supabase Storage
-        result = supabase.storage.from_("event-images").upload(
-            unique_filename, contents, {"content-type": image.content_type}
-        )
-
-        # Get public URL
-        public_url = supabase.storage.from_("event-images").get_public_url(
-            unique_filename
-        )
-
-        return public_url
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Error uploading image: {str(e)}")
+    """Upload an event image (magic-byte validated) and return the public URL"""
+    return await upload_image(image, "event-images")
 
 
 async def create_event(
@@ -181,7 +187,7 @@ async def validate_checkout_requirements(
         logger.warning(f"Host {foodie_id} attempted to join their own event {event_id}")
         raise HTTPException(status_code=400, detail="Host cannot join their own event")
 
-    if event.event_date <= datetime.now(timezone.utc):
+    if _as_utc(event.event_date) <= datetime.now(timezone.utc):
         logger.warning(f"User {foodie_id} tried to join a past event")
         raise HTTPException(status_code=400, detail="Cannot join a past event")
 
@@ -190,7 +196,7 @@ async def validate_checkout_requirements(
         .filter(
             EventParticipantModel.event_id == event_id,
             EventParticipantModel.participant_id == foodie_id,
-            EventParticipantModel.status == "confirmed",
+            EventParticipantModel.status.in_(ACTIVE_STATUSES),
         )
         .first()
     )
@@ -199,18 +205,11 @@ async def validate_checkout_requirements(
         logger.warning(f"User {foodie_id} attempted to join event {event_id} again")
         raise HTTPException(status_code=400, detail="Already joined this event")
 
-    confirmed_count = (
-        db.query(EventParticipantModel)
-        .filter(
-            EventParticipantModel.event_id == event_id,
-            EventParticipantModel.status == "confirmed",
-        )
-        .count()
-    )
+    active_count = count_active_participants(event_id, db)
 
-    if confirmed_count >= event.max_participants:
+    if active_count >= event.max_participants:
         logger.warning(
-            f"Event {event_id} is full ({confirmed_count}/{event.max_participants})"
+            f"Event {event_id} is full ({active_count}/{event.max_participants})"
         )
         raise HTTPException(status_code=400, detail="Event is full")
 
@@ -234,21 +233,24 @@ async def validate_checkout_requirements(
     return event, chef
 
 
-async def list_events(db: Session) -> List[Event]:
-    """List all available events (excluding deleted ones)"""
+async def list_events(
+    db: Session,
+    limit: int = 50,
+    offset: int = 0,
+    include_past: bool = False,
+) -> List[Event]:
+    """List available events (excluding deleted; upcoming only by default)"""
     try:
-        event_models = (
-            db.query(EventModel)
-            .filter(EventModel.is_deleted == False)
-            .order_by(desc(EventModel.event_date))
+        query = _events_with_meal_query(db).filter(EventModel.is_deleted == False)
+        if not include_past:
+            query = query.filter(EventModel.event_date >= datetime.now(timezone.utc))
+        rows = (
+            query.order_by(EventModel.event_date.asc())
+            .offset(offset)
+            .limit(min(limit, 100))
             .all()
         )
-        # Convert each event with its meal name
-        events = []
-        for event_model in event_models:
-            meal_name = get_meal_name(event_model.meal_id, db)
-            events.append(event_model_to_schema(event_model, meal_name))
-        return events
+        return _rows_to_schemas(rows)
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Error fetching events: {str(e)}")
 
@@ -293,18 +295,13 @@ async def get_event_participants(
 async def get_user_events(user_id: str, db: Session) -> List[Event]:
     """Get all events created by a specific user (excluding deleted ones)"""
     try:
-        event_models = (
-            db.query(EventModel)
+        rows = (
+            _events_with_meal_query(db)
             .filter(EventModel.host_user_id == user_id, EventModel.is_deleted == False)
             .order_by(desc(EventModel.event_date))
             .all()
         )
-        # Convert each event with its meal name
-        events = []
-        for event_model in event_models:
-            meal_name = get_meal_name(event_model.meal_id, db)
-            events.append(event_model_to_schema(event_model, meal_name))
-        return events
+        return _rows_to_schemas(rows)
     except Exception as e:
         raise HTTPException(
             status_code=400, detail=f"Error fetching user events: {str(e)}"
@@ -314,34 +311,23 @@ async def get_user_events(user_id: str, db: Session) -> List[Event]:
 async def get_user_joined_events(user_id: str, db: Session) -> List[Event]:
     """Get all events that a user has joined (excluding deleted ones)"""
     try:
-        # First get all event IDs that the user has joined
-        participant_models = (
-            db.query(EventParticipantModel)
+        # Only participations that actually hold a seat count as "joined";
+        # cancelled and refunded rows are excluded.
+        rows = (
+            _events_with_meal_query(db)
+            .join(
+                EventParticipantModel,
+                EventParticipantModel.event_id == EventModel.id,
+            )
             .filter(
                 EventParticipantModel.participant_id == user_id,
-                EventParticipantModel.refunded_at == None,
+                EventParticipantModel.status.in_(ACTIVE_STATUSES),
+                EventModel.is_deleted == False,
             )
-            .all()
-        )
-
-        if not participant_models:
-            return []
-
-        event_ids = [participant.event_id for participant in participant_models]
-
-        # Then get the full event details for those events (excluding deleted ones)
-        event_models = (
-            db.query(EventModel)
-            .filter(EventModel.id.in_(event_ids), EventModel.is_deleted == False)
             .order_by(desc(EventModel.event_date))
             .all()
         )
-        # Convert each event with its meal name
-        events = []
-        for event_model in event_models:
-            meal_name = get_meal_name(event_model.meal_id, db)
-            events.append(event_model_to_schema(event_model, meal_name))
-        return events
+        return _rows_to_schemas(rows)
     except Exception as e:
         raise HTTPException(
             status_code=400, detail=f"Error fetching joined events: {str(e)}"
@@ -434,11 +420,61 @@ async def soft_delete_event(event_id: str, user_id: str, db: Session) -> Dict[st
             status_code=403, detail="Only the event host can delete the event"
         )
 
-    try:
-        # Soft delete: set is_deleted to True
-        event_model.is_deleted = True
+    # Host cancellation policy: every foodie gets their money back.
+    # - 'booked' rows: void the uncaptured PaymentIntent (no charge ever made)
+    # - 'confirmed' rows: full refund with reverse_transfer (claws back the
+    #   chef's share; the platform eats Stripe's processing fee)
+    participations = (
+        db.query(EventParticipantModel)
+        .filter(
+            EventParticipantModel.event_id == event_id,
+            EventParticipantModel.status.in_(ACTIVE_STATUSES),
+        )
+        .all()
+    )
+
+    refund_failures = []
+    for p in participations:
+        if not p.payment_intent_id:
+            p.status = "cancelled"
+            continue
+        try:
+            if p.status == "booked":
+                await cancel_payment_intent(p.payment_intent_id)
+            else:  # confirmed
+                await create_refund(p.payment_intent_id)  # full refund
+            p.status = "cancelled"
+            p.refunded_at = datetime.now(timezone.utc)
+        except InvalidRequestError as e:
+            # Already cancelled/refunded/expired on Stripe's side
+            logger.warning(
+                f"Payment {p.payment_intent_id} not refundable during event cancel: {e}"
+            )
+            p.status = "cancelled"
+            p.refunded_at = datetime.now(timezone.utc)
+        except StripeError as e:
+            logger.error(
+                f"REFUND FAILED during event {event_id} cancellation: "
+                f"participant {p.participant_id}, payment_intent {p.payment_intent_id}: {e}"
+            )
+            refund_failures.append(p.participant_id)
+
+    if refund_failures:
+        # Commit the refunds that DID succeed, keep the event alive, surface the error
         db.commit()
-        logger.info(f"Event {event_id} soft deleted by user {user_id}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Could not refund {len(refund_failures)} participant(s); event not deleted. Try again.",
+        )
+
+    try:
+        event_model.is_deleted = True
+        event_model.current_participants = 0
+        db.commit()
+        logger.info(
+            f"Event {event_id} cancelled by host {user_id}; "
+            f"{len(participations)} participation(s) refunded/voided"
+        )
         return {"message": "Event successfully deleted", "event_id": event_id}
     except Exception as e:
         db.rollback()
@@ -449,7 +485,16 @@ async def soft_delete_event(event_id: str, user_id: str, db: Session) -> Dict[st
 async def refund_event_participation(
     event_id: str, user_id: str, db: Session
 ) -> RefundResponse:
-    """Process a refund for a user's event participation"""
+    """Foodie-initiated cancellation.
+
+    Policy (July 2026):
+    - While 'booked' (host has not accepted yet): free cancellation. The
+      PaymentIntent is uncaptured, so cancelling voids the hold - no charge,
+      no Stripe fees.
+    - Once 'confirmed' (host accepted, payment captured): the seat is final,
+      no refunds. If the HOST cancels the event, everyone is refunded in full
+      via cancel_event_with_refunds.
+    """
     try:
         event_model = (
             db.query(EventModel)
@@ -465,7 +510,7 @@ async def refund_event_participation(
             .filter(
                 EventParticipantModel.event_id == event_id,
                 EventParticipantModel.participant_id == user_id,
-                EventParticipantModel.status == "confirmed",
+                EventParticipantModel.status.in_(ACTIVE_STATUSES),
             )
             .first()
         )
@@ -474,79 +519,55 @@ async def refund_event_participation(
             logger.warning(f"User {user_id} not registered for event {event_id}")
             raise HTTPException(status_code=400, detail="Not registered for this event")
 
+        if participation.status == "confirmed":
+            logger.info(
+                f"Refund denied (seat confirmed): event {event_id}, user {user_id}"
+            )
+            raise HTTPException(
+                status_code=400,
+                detail="Your seat was confirmed by the host - bookings are final once confirmed. "
+                "If the host cancels the event you will be refunded in full.",
+            )
+
         if not participation.payment_intent_id:
             logger.error(
                 f"No payment intent found for participation: event {event_id}, user {user_id}"
             )
             raise HTTPException(status_code=400, detail="Payment not found")
 
-        if participation.refunded_at is not None:
-            logger.warning(
-                f"User {user_id} attempted duplicate refund for event {event_id}"
-            )
-            raise HTTPException(status_code=400, detail="Already refunded")
-
-        now = datetime.now(timezone.utc)
-
-        hours_since_reservation = (now - participation.joined_at).total_seconds() / 3600
-        within_reservation_window = hours_since_reservation <= 12
-
-        if not within_reservation_window:
-            logger.warning(
-                f"Refund window expired for user {user_id}, event {event_id} ({hours_since_reservation:.1f}h)"
-            )
-            raise HTTPException(status_code=400, detail="Refund window has expired")
-
-        hours_until_event = (event_model.event_date - now).total_seconds() / 3600
-        before_event_window = hours_until_event >= 24
-
-        if not before_event_window:
-            logger.warning(
-                f"Refund too close to event time for user {user_id}, event {event_id} ({hours_until_event:.1f}h)"
-            )
-            raise HTTPException(status_code=400, detail="Too close to event time")
-
-        refund_amount_cents = (event_model.price * 70) // 100
-
+        # status == 'booked': void the uncaptured PaymentIntent (free, no fees)
         try:
-            refund = stripe.Refund.create(
-                payment_intent=participation.payment_intent_id,
-                amount=refund_amount_cents,
-                reverse_transfer=True,
-            )
-            logger.info(
-                f"Stripe refund created: {refund.id} for event {event_id}, user {user_id}"
-            )
+            await cancel_payment_intent(participation.payment_intent_id)
         except InvalidRequestError as e:
-            logger.error(
-                f"Stripe invalid request for refund: event {event_id}, user {user_id}: {e}"
+            # Already cancelled/expired on Stripe's side - safe to release the seat
+            logger.warning(
+                f"PaymentIntent {participation.payment_intent_id} already not cancellable: {e}"
             )
-            raise HTTPException(status_code=400, detail="Refund not available")
         except StripeError as e:
             logger.error(
-                f"Stripe error during refund: event {event_id}, user {user_id}: {e}"
+                f"Stripe error cancelling payment: event {event_id}, user {user_id}: {e}"
             )
-            raise HTTPException(status_code=500, detail="Refund failed")
+            raise HTTPException(status_code=500, detail="Cancellation failed")
 
         try:
             participation.status = "cancelled"
             participation.refunded_at = datetime.now(timezone.utc)
-            event_model.current_participants -= 1
-            db.commit()
-            logger.info(
-                f"Refund processed successfully: event {event_id}, user {user_id}, amount ${refund_amount_cents/100:.2f}"
+            event_model.current_participants = max(
+                count_active_participants(event_id, db) - 1, 0
             )
+            db.commit()
         except Exception as e:
             db.rollback()
             logger.error(
-                f"Database error during refund: event {event_id}, user {user_id}: {e}",
+                f"Database error during cancellation: event {event_id}, user {user_id}: {e}",
                 exc_info=True,
             )
-            raise HTTPException(status_code=500, detail="Refund failed")
+            raise HTTPException(status_code=500, detail="Cancellation failed")
 
+        logger.info(f"Booking cancelled: event {event_id}, user {user_id}")
         return RefundResponse(
-            refund_amount_cents=refund_amount_cents,
-            message="Refund processed successfully",
+            refund_amount_cents=event_model.price,
+            message="Booking cancelled - your card was never charged",
         )
 
     except HTTPException:
@@ -554,10 +575,10 @@ async def refund_event_participation(
     except Exception as e:
         db.rollback()
         logger.error(
-            f"Unexpected error during refund: event {event_id}, user {user_id}: {e}",
+            f"Unexpected error during cancellation: event {event_id}, user {user_id}: {e}",
             exc_info=True,
         )
-        raise HTTPException(status_code=500, detail="Refund failed")
+        raise HTTPException(status_code=500, detail="Cancellation failed")
 
 
 async def accept_user_participation(
@@ -574,7 +595,7 @@ async def accept_user_participation(
             raise HTTPException(status_code=404, detail="Event not found")
 
         if host_id != event_model.host_user_id:
-            raise HTTPException(status_code=400, detail="User is not host")
+            raise HTTPException(status_code=403, detail="User is not host")
 
         existing_participation = (
             db.query(EventParticipantModel)
@@ -588,19 +609,58 @@ async def accept_user_participation(
 
         if not existing_participation:
             raise HTTPException(
-                status_code=500, detail="Foodie participation not found"
+                status_code=404, detail="Pending participation not found"
             )
 
         if not existing_participation.payment_intent_id:
             raise HTTPException(
                 status_code=500,
-                detail="Foodie participation doesn't have payment_intend_id",
+                detail="Participation has no payment_intent_id",
             )
 
+        payment_intent_id = existing_participation.payment_intent_id
+
+        # Commit the status change FIRST, then capture. If capture then fails
+        # we roll the status back; the uncaptured hold simply stays in place.
+        # (The reverse order risked captured money with no committed seat.)
         existing_participation.status = "confirmed"
-        await capture_payment_intent(existing_participation.payment_intent_id)
+        existing_participation.confirmed_at = datetime.now(timezone.utc)
         db.commit()
+
+        try:
+            await capture_payment_intent(payment_intent_id)
+        except Exception as capture_error:
+            logger.error(
+                f"CAPTURE FAILED after confirm: event {event_id}, user {user_id}, "
+                f"payment_intent {payment_intent_id}: {capture_error}. Reverting to booked."
+            )
+            try:
+                existing_participation.status = "booked"
+                existing_participation.confirmed_at = None
+                db.commit()
+            except Exception:
+                db.rollback()
+                logger.critical(
+                    f"Could not revert participation after failed capture: "
+                    f"event {event_id}, user {user_id}, payment_intent {payment_intent_id}. "
+                    f"MANUAL RECONCILIATION REQUIRED."
+                )
+            raise HTTPException(
+                status_code=500,
+                detail="Payment capture failed - the booking was not confirmed. Please try again.",
+            )
+
+        logger.info(
+            f"Participation confirmed and captured: event {event_id}, user {user_id}"
+        )
+    except HTTPException:
+        raise
     except Exception as e:
+        db.rollback()
+        logger.error(
+            f"Error accepting participation: event {event_id}, user {user_id}: {e}",
+            exc_info=True,
+        )
         raise HTTPException(
             status_code=400, detail=f"Error accepting user participation: {str(e)}"
         )

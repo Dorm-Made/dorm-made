@@ -31,9 +31,9 @@ export function useStripeConnect(autoCheck = true): UseStripeConnectReturn {
       console.error("[useStripeConnect] Error checking status:", error);
       setStripeStatus({
         connected: false,
-        charges_enabled: false,
-        onboarding_complete: false,
-        account_id: null,
+        chargesEnabled: false,
+        onboardingComplete: false,
+        accountId: null,
       });
     } finally {
       setLoading(false);
@@ -52,7 +52,7 @@ export function useStripeConnect(autoCheck = true): UseStripeConnectReturn {
         analytics.stripeOnboardingStarted(currentUser.id);
       }
 
-      window.location.href = response.onboarding_url;
+      window.location.href = response.onboardingUrl;
     } catch (error) {
       console.error("[useStripeConnect] Error starting onboarding:", error);
       toast({
@@ -72,8 +72,8 @@ export function useStripeConnect(autoCheck = true): UseStripeConnectReturn {
   }, [autoCheck, checkStatus]);
 
   const isConnected = stripeStatus?.connected ?? false;
-  const canAcceptPayments = stripeStatus?.charges_enabled ?? false;
-  const needsOnboarding = !stripeStatus?.onboarding_complete;
+  const canAcceptPayments = stripeStatus?.chargesEnabled ?? false;
+  const needsOnboarding = !stripeStatus?.onboardingComplete;
 
   return {
     stripeStatus,

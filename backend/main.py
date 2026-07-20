@@ -12,6 +12,7 @@ from contextlib import asynccontextmanager
 
 from routers import users, events, meals, checkout, reviews, onboarding
 from routers.gateways.stripe import webhook, connect_webhook
+from utils.config import Config as AppConfig
 
 import sentry_sdk
 
@@ -27,10 +28,12 @@ logger = logging.getLogger(__name__)
 
 environment = os.getenv("ENVIRONMENT", "dev")
 
-if environment == "prod":
+sentry_dsn = os.getenv("SENTRY_DSN")
+if environment == "prod" and sentry_dsn:
     sentry_sdk.init(
-        dsn="https://137305a5acd3180c04322048e8269c45@o4510551410147328.ingest.us.sentry.io/4510551411261440",
-        send_default_pii=True,
+        dsn=sentry_dsn,
+        # PII disabled: Privacy Policy does not disclose shipping user data to Sentry
+        send_default_pii=False,
         enable_logs=True,
     )
     logger.info("Sentry monitoring enabled for production")
@@ -40,13 +43,18 @@ else:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    try:
-        alembic_cfg = Config("alembic.ini")
-        command.upgrade(alembic_cfg, "head")
-        logger.info("Database migrations completed successfully")
-    except Exception as e:
-        logger.error(f"Migration failed: {e}")
-        raise
+    AppConfig.validate()
+    if os.getenv("RUN_MIGRATIONS_ON_STARTUP", "true").lower() == "true":
+        try:
+            alembic_ini = os.path.join(os.path.dirname(os.path.abspath(__file__)), "alembic.ini")
+            alembic_cfg = Config(alembic_ini)
+            command.upgrade(alembic_cfg, "head")
+            logger.info("Database migrations completed successfully")
+        except Exception as e:
+            logger.error(f"Migration failed: {e}")
+            raise
+    else:
+        logger.info("RUN_MIGRATIONS_ON_STARTUP disabled - skipping migrations")
     yield
     # Code after yield runs on application shutdown
     logger.info("Application shutdown")
@@ -56,10 +64,21 @@ app = FastAPI(
     title="Dorm Made - Culinary Social Network", version="1.0.0", lifespan=lifespan
 )
 
+# Comma-separated list, e.g. "https://dormmade.com,https://www.dormmade.com"
+allowed_origins = [
+    o.strip()
+    for o in os.getenv(
+        "ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:5173"
+    ).split(",")
+    if o.strip()
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allows all origins
-    allow_credentials=False,  # Set to False when using wildcard origins
+    allow_origins=allowed_origins,
+    # Note: Authorization bearer headers are not CORS "credentials";
+    # this stays False unless we move to cookie-based auth.
+    allow_credentials=False,
     allow_methods=[
         "GET",
         "POST",

@@ -23,7 +23,7 @@ export function ProfilePaymentsTab() {
     try {
       setLoadingLoginLink(true);
       const response = await userService.getStripeLoginLink();
-      window.location.href = response.account_url;
+      window.location.href = response.accountUrl;
     } catch (err) {
       toast({
         title: "Error",
@@ -77,7 +77,7 @@ export function ProfilePaymentsTab() {
     );
   }
 
-  if (stripeStatus.connected && !stripeStatus.onboarding_complete) {
+  if (stripeStatus.connected && !stripeStatus.onboardingComplete) {
     return (
       <div className="space-y-6">
         <StatusHeader
@@ -97,7 +97,7 @@ export function ProfilePaymentsTab() {
 
         <div className="space-y-3">
           <h4 className="font-medium text-sm">Account Details</h4>
-          <AccountDetailRow label="Account ID" value={stripeStatus.account_id} />
+          <AccountDetailRow label="Account ID" value={stripeStatus.accountId} />
         </div>
 
         <Separator />
@@ -140,7 +140,7 @@ export function ProfilePaymentsTab() {
     );
   }
 
-  if (stripeStatus.connected && stripeStatus.onboarding_complete && !stripeStatus.charges_enabled) {
+  if (stripeStatus.connected && stripeStatus.onboardingComplete && !stripeStatus.chargesEnabled) {
     return (
       <div className="space-y-6">
         <StatusHeader
@@ -161,7 +161,7 @@ export function ProfilePaymentsTab() {
         <div className="space-y-3">
           <h4 className="font-medium text-sm">Account Details</h4>
           <div className="grid gap-2">
-            <AccountDetailRow label="Account ID" value={stripeStatus.account_id} />
+            <AccountDetailRow label="Account ID" value={stripeStatus.accountId} />
             <AccountDetailRow
               label="Onboarding Complete"
               value={<StatusIndicator enabled={true} />}
@@ -234,7 +234,7 @@ export function ProfilePaymentsTab() {
       <div className="space-y-3">
         <h4 className="font-medium text-sm">Account Details</h4>
         <div className="grid gap-2">
-          <AccountDetailRow label="Account ID" value={stripeStatus.account_id} />
+          <AccountDetailRow label="Account ID" value={stripeStatus.accountId} />
           <AccountDetailRow
             label="Can Accept Payments"
             value={<StatusIndicator enabled={true} />}

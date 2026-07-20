@@ -10,6 +10,7 @@ from schemas.user import User, UserCreate, UserLogin, UserUpdate, LoginResponse
 from utils.password import hash_password, verify_password, create_access_token
 from utils.converters import user_model_to_schema, user_models_to_schemas
 from utils.supabase import supabase
+from utils.uploads import upload_image
 
 logger = logging.getLogger(__name__)
 
@@ -34,8 +35,9 @@ async def get_user(user_id: str, db: Session) -> Optional[User]:
         return None
 
 
-async def create_user(user: UserCreate, db: Session) -> User:
-    """Create a new user (optionally referred by an existing user's invite code)"""
+async def create_user(user: UserCreate, db: Session) -> LoginResponse:
+    """Create a new user and log them in immediately (returns token + user).
+    Optionally referred by an existing user's invite code."""
     from services import referral_service
 
     try:
@@ -75,8 +77,14 @@ async def create_user(user: UserCreate, db: Session) -> User:
         if referrer:
             logger.info(f"User {user_model.id} referred by {referrer.id} ({referrer.invite_code})")
         logger.info(f"User created successfully: {user_model.id}")
-        return user_model_to_schema(
-            user_model, referred_by_name=referrer.name if referrer else None
+        # Log the user straight in - no separate login step after signup
+        access_token = create_access_token(data={"userId": user_model.id})
+        return LoginResponse(
+            access_token=access_token,
+            token_type="bearer",
+            user=user_model_to_schema(
+                user_model, referred_by_name=referrer.name if referrer else None
+            ),
         )
     except HTTPException:
         raise
@@ -156,25 +164,10 @@ async def update_user(user_id: str, user_update: UserUpdate, db: Session) -> Use
 async def upload_profile_picture(user_id: str, image: UploadFile, db: Session) -> User:
     """Upload a profile picture to Supabase Storage and update user profile"""
     try:
-        # Validate file type (only JPEG and PNG)
-        allowed_types = ["image/jpeg", "image/jpg", "image/png"]
-        if image.content_type not in allowed_types:
-            raise HTTPException(
-                status_code=400,
-                detail="Tipo de arquivo inválido. Apenas imagens JPEG e PNG são permitidas.",
-            )
-
-        # Validate file size (5MB max)
-        contents = await image.read()
-        if len(contents) > 5 * 1024 * 1024:  # 5MB in bytes
-            raise HTTPException(
-                status_code=400, detail="Tamanho do arquivo excede o limite de 5MB."
-            )
-
         # Get current user to check for existing profile picture
         current_user = await get_user(user_id, db)
         if not current_user:
-            raise HTTPException(status_code=404, detail="Usuário não encontrado")
+            raise HTTPException(status_code=404, detail="User not found")
 
         # Delete old profile picture if it exists
         old_picture_url = current_user.profile_picture
@@ -192,18 +185,9 @@ async def upload_profile_picture(user_id: str, image: UploadFile, db: Session) -
                 )
                 # Continue with upload even if deletion fails
 
-        # Generate unique filename
-        file_extension = image.filename.split(".")[-1] if image.filename else "jpg"
-        unique_filename = f"{user_id}_{uuid.uuid4()}_{int(datetime.now().timestamp())}.{file_extension}"
-
-        # Upload to Supabase Storage
-        result = supabase.storage.from_("profile-pictures").upload(
-            unique_filename, contents, {"content-type": image.content_type}
-        )
-
-        # Get public URL
-        public_url = supabase.storage.from_("profile-pictures").get_public_url(
-            unique_filename
+        # Upload new picture (magic-byte validated; JPEG/PNG/WebP)
+        public_url = await upload_image(
+            image, "profile-pictures", filename_prefix=f"{user_id}_"
         )
 
         # Update user profile with new picture URL
@@ -220,7 +204,7 @@ async def upload_profile_picture(user_id: str, image: UploadFile, db: Session) -
             f"Error uploading profile picture for user {user_id}: {e}", exc_info=True
         )
         raise HTTPException(
-            status_code=400, detail=f"Erro ao fazer upload da foto: {str(e)}"
+            status_code=400, detail=f"Error uploading profile picture: {str(e)}"
         )
 
 

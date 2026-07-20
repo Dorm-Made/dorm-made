@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
 import { Eye, EyeOff } from "lucide-react";
-import { useLocation, useSearchParams } from "react-router-dom";
+import { Link, useLocation, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/hooks/use-auth";
 import { usePasswordToggle } from "@/hooks/use-password-toggle";
 
@@ -35,6 +35,7 @@ export default function Auth() {
     inviteCode: searchParams.get("invite") || draft.inviteCode || "",
   });
 
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
   const location = useLocation();
   const { showPassword, togglePassword } = usePasswordToggle();
   const { loading, signUp, login } = useAuth();
@@ -205,10 +206,45 @@ export default function Auth() {
                       </div>
                     </div>
 
+                    {/* Terms agreement - required to create an account */}
+                    <div className="flex items-start gap-3 pt-2">
+                      <input
+                        id="agreeTerms"
+                        type="checkbox"
+                        checked={agreedToTerms}
+                        onChange={(e) => setAgreedToTerms(e.target.checked)}
+                        required
+                        className="mt-0.5 h-4 w-4 shrink-0 accent-primary cursor-pointer"
+                      />
+                      <label
+                        htmlFor="agreeTerms"
+                        className="text-xs text-muted-foreground leading-relaxed cursor-pointer"
+                      >
+                        I have read and agree to the{" "}
+                        <Link
+                          to="/terms"
+                          target="_blank"
+                          className="underline text-foreground hover:text-primary"
+                        >
+                          Terms &amp; Conditions
+                        </Link>{" "}
+                        and{" "}
+                        <Link
+                          to="/privacy"
+                          target="_blank"
+                          className="underline text-foreground hover:text-primary"
+                        >
+                          Privacy Policy
+                        </Link>
+                        , including the assumption of risk, release of liability, and
+                        arbitration provisions.
+                      </label>
+                    </div>
+
                     <Button
                       type="submit"
                       className="w-full bg-gradient-to-r from-primary to-primary-glow"
-                      disabled={loading}
+                      disabled={loading || !agreedToTerms}
                     >
                       {loading ? "Creating Account..." : "Create Account"}
                     </Button>

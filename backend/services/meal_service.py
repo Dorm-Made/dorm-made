@@ -9,50 +9,15 @@ from models.meal import MealModel
 from schemas.meal import Meal, MealCreate, MealUpdate
 from utils.converters import meal_model_to_schema, meal_models_to_schemas
 from utils.supabase import supabase
+from utils.uploads import upload_image
 from .user_service import get_user
 
 logger = logging.getLogger(__name__)
 
 
 async def upload_meal_image(image: UploadFile) -> str:
-    """Upload a meal image to Supabase Storage and return the public URL"""
-    try:
-        # Validate file type
-        allowed_types = ["image/jpeg", "image/jpg", "image/png", "image/webp"]
-        if image.content_type not in allowed_types:
-            raise HTTPException(
-                status_code=400,
-                detail="Invalid file type. Please select a JPEG, PNG, or WebP image",
-            )
-
-        # Validate file size (5MB max)
-        contents = await image.read()
-        if len(contents) > 5 * 1024 * 1024:  # 5MB in bytes
-            raise HTTPException(
-                status_code=400, detail="File size must be less than 5MB"
-            )
-
-        # Generate unique filename
-        file_extension = image.filename.split(".")[-1] if image.filename else "jpg"
-        unique_filename = (
-            f"{uuid.uuid4()}_{int(datetime.now().timestamp())}.{file_extension}"
-        )
-
-        # Upload to Supabase Storage (using meal-images bucket)
-        result = supabase.storage.from_("meal-images").upload(
-            unique_filename, contents, {"content-type": image.content_type}
-        )
-
-        # Get public URL
-        public_url = supabase.storage.from_("meal-images").get_public_url(
-            unique_filename
-        )
-
-        return public_url
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Error uploading image: {str(e)}")
+    """Upload a meal image (magic-byte validated) and return the public URL"""
+    return await upload_image(image, "meal-images")
 
 
 async def create_meal(
@@ -99,6 +64,21 @@ async def create_meal(
         db.rollback()
         logger.error(f"Error creating meal for user {user_id}: {e}", exc_info=True)
         raise HTTPException(status_code=400, detail=f"Error creating meal: {str(e)}")
+
+
+async def list_all_meals(db: Session, limit: int = 100) -> List[Meal]:
+    """List all non-deleted meals (newest first)"""
+    try:
+        meal_models = (
+            db.query(MealModel)
+            .filter(MealModel.is_deleted == False)
+            .order_by(MealModel.created_at.desc())
+            .limit(limit)
+            .all()
+        )
+        return meal_models_to_schemas(meal_models)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Error fetching meals: {str(e)}")
 
 
 async def get_user_meals(user_id: str, db: Session) -> List[Meal]:

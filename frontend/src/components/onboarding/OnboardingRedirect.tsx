@@ -21,7 +21,7 @@ export function OnboardingRedirect() {
 
     try {
       const currentUser = JSON.parse(userStr);
-      if (currentUser && !currentUser.onboarding_completed) {
+      if (currentUser && !currentUser.onboardingCompleted) {
         navigate("/onboarding", { replace: true });
       }
     } catch {

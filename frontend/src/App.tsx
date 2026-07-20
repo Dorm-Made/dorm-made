@@ -9,6 +9,7 @@ import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
 import CreateMeal from "./pages/CreateMeal";
 import Onboarding from "./pages/Onboarding";
+import Legal from "./pages/Legal";
 import { OnboardingRedirect } from "./components/onboarding/OnboardingRedirect";
 import { SplashScreen } from "./components/layout/SplashScreen";
 
@@ -30,6 +31,9 @@ const App = () => (
             <Route path="/onboarding" element={<Onboarding />} />
             <Route path="/login" element={<Auth />} />
             <Route path="/signup" element={<Auth />} />
+            <Route path="/terms" element={<Legal />} />
+            <Route path="/privacy" element={<Legal />} />
+            <Route path="/house-rules" element={<Legal />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

@@ -6,12 +6,12 @@ export interface UserLogin {
 }
 
 export interface Token {
-  access_token: string;
-  token_type: string;
+  accessToken: string;
+  tokenType: string;
 }
 
 export interface LoginResponse {
-  access_token: string;
-  token_type: string;
+  accessToken: string;
+  tokenType: string;
   user: User;
 }

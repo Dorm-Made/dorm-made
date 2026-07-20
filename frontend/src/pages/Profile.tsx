@@ -178,8 +178,8 @@ export default function Profile() {
                 <div className="flex flex-col items-center lg:items-start">
                   <div className="relative">
                     <Avatar className="h-24 w-24 lg:h-32 lg:w-32 border-4 border-background shadow-lg">
-                      {editingUser?.profile_picture ? (
-                        <AvatarImage src={editingUser.profile_picture} alt={user.name} />
+                      {editingUser?.profilePicture ? (
+                        <AvatarImage src={editingUser.profilePicture} alt={user.name} />
                       ) : null}
                       <AvatarFallback className="text-2xl lg:text-3xl bg-gradient-to-br from-primary to-primary-glow text-primary-foreground">
                         {getInitials(user.name)}
@@ -277,10 +277,10 @@ export default function Profile() {
                   {!isEditing && userId && <ProfileRatingBadges userId={userId} />}
 
                   {/* Permanent referral credit (Clubhouse-style) */}
-                  {!isEditing && user.referred_by_user_id && user.referred_by_name && (
+                  {!isEditing && user.referredByUserId && user.referredByName && (
                     <ReferredByChip
-                      referrerId={user.referred_by_user_id}
-                      referrerName={user.referred_by_name}
+                      referrerId={user.referredByUserId}
+                      referrerName={user.referredByName}
                     />
                   )}
 
@@ -334,8 +334,8 @@ export default function Profile() {
                         </Label>
                         <Input
                           id="profile_picture"
-                          value={editingUser?.profile_picture || ""}
-                          onChange={(e) => updateEditingUser({ profile_picture: e.target.value })}
+                          value={editingUser?.profilePicture || ""}
+                          onChange={(e) => updateEditingUser({ profilePicture: e.target.value })}
                           placeholder="https://example.com/photo.jpg"
                           type="url"
                         />
@@ -366,8 +366,8 @@ export default function Profile() {
                       {/* Public taste profile from the onboarding quiz */}
                       <div className="pt-2">
                         <TasteProfileCard
-                          archetype={user.taste_archetype}
-                          description={user.taste_description}
+                          archetype={user.tasteArchetype}
+                          description={user.tasteDescription}
                           isOwnProfile={isOwnProfile()}
                         />
                       </div>

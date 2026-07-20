@@ -13,7 +13,7 @@ from schemas.refund import RefundResponse
 from utils.auth import get_current_user_id
 from utils.database import get_db
 from services import event_service
-from services.gateways.stripe_service import create_checkout_session
+from services.gateways import stripe_service
 
 router = APIRouter(prefix="/events", tags=["events"])
 
@@ -51,13 +51,28 @@ async def create_event_endpoint(
     image: Annotated[Optional[UploadFile], File()] = None,
 ):
     """Create a new culinary event with optional image upload"""
-    # Parse price: convert to int (cents) if provided and not empty, otherwise None
-    price_int = None
-    if price and str(price).strip():
-        try:
-            price_int = int(price)
-        except (ValueError, TypeError):
-            price_int = None
+    # Price is required, in cents. Free ($0) events are not supported:
+    # every booking goes through Stripe, which needs at least ~50 cents.
+    MIN_PRICE_CENTS = 50
+    MAX_PRICE_CENTS = 50000  # $500 - sanity cap for a dorm dinner
+
+    if price is None or not str(price).strip():
+        raise HTTPException(status_code=422, detail="Price is required")
+    try:
+        price_int = int(str(price).strip())
+    except (ValueError, TypeError):
+        raise HTTPException(status_code=422, detail="Price must be a whole number of cents")
+
+    if price_int < MIN_PRICE_CENTS:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Price must be at least {MIN_PRICE_CENTS} cents ($0.50)",
+        )
+    if price_int > MAX_PRICE_CENTS:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Price cannot exceed {MAX_PRICE_CENTS} cents ($500)",
+        )
 
     # Construct EventCreate object from form data
     event_data = EventCreate(
@@ -67,7 +82,7 @@ async def create_event_endpoint(
         max_participants=max_participants,
         location=location,
         event_date=event_date,
-        price=price_int or 0,
+        price=price_int,
         currency=currency,
     )
 
@@ -95,7 +110,7 @@ async def create_checkout_session_endpoint(
         )
 
         # validate_checkout_requirements ensures stripe_account_id is not None
-        result = await create_checkout_session(
+        result = await stripe_service.create_checkout_session(
             event_id=event_id,
             event_title=event.title,
             event_description=event_description,
@@ -118,12 +133,18 @@ async def create_checkout_session_endpoint(
 
 @router.get("/", response_model=List[Event], response_model_by_alias=True)
 async def list_events_endpoint(
-    user_id: Optional[str] = None, db: Session = Depends(get_db)
+    user_id: Optional[str] = None,
+    limit: int = 50,
+    offset: int = 0,
+    include_past: bool = False,
+    db: Session = Depends(get_db),
 ):
-    """List all events, optionally filtered by user_id (for public profiles)"""
+    """List events (upcoming only by default, paginated), optionally filtered by user_id"""
     if user_id:
         return await event_service.get_user_events(user_id, db)
-    return await event_service.list_events(db)
+    return await event_service.list_events(
+        db, limit=limit, offset=offset, include_past=include_past
+    )
 
 
 @router.get("/{event_id}", response_model=Event, response_model_by_alias=True)
@@ -133,8 +154,12 @@ async def get_event_details_endpoint(event_id: str, db: Session = Depends(get_db
 
 
 @router.get("/{event_id}/participants", response_model=List[EventParticipantUser])
-async def get_event_participants_endpoint(event_id: str, db: Session = Depends(get_db)):
-    """Get all participants for a specific event"""
+async def get_event_participants_endpoint(
+    event_id: str,
+    current_user_id: Annotated[str, Depends(get_current_user_id)],
+    db: Session = Depends(get_db),
+):
+    """Get all participants for a specific event (authenticated users only)"""
     return await event_service.get_event_participants(event_id, db)
 
 

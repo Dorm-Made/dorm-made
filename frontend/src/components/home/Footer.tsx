@@ -1,4 +1,5 @@
 import { Mail } from "lucide-react";
+import { Link } from "react-router-dom";
 
 export function Footer() {
   return (
@@ -32,7 +33,20 @@ export function Footer() {
           </div>
         </div>
 
-        <div className="mt-8 pt-6 border-t border-background/10 text-center">
+        <div className="mt-8 pt-6 border-t border-background/10 text-center space-y-2">
+          <div className="flex items-center justify-center gap-4 text-xs text-background/50">
+            <Link to="/terms" className="hover:text-background transition-colors">
+              Terms &amp; Conditions
+            </Link>
+            <span aria-hidden="true">·</span>
+            <Link to="/privacy" className="hover:text-background transition-colors">
+              Privacy Policy
+            </Link>
+            <span aria-hidden="true">·</span>
+            <Link to="/house-rules" className="hover:text-background transition-colors">
+              House Rules
+            </Link>
+          </div>
           <p className="text-xs text-background/50">© 2026 Dorm Made. All rights reserved.</p>
         </div>
       </div>

@@ -56,20 +56,19 @@ httpClient.interceptors.response.use(
     return response;
   },
   (error) => {
-    console.log("API Error:", error.response?.status, error.response?.data);
-    console.log("Request URL:", error.config?.url);
-
     if (error.response?.status === 401) {
-      console.log("401 Error - clearing token and redirecting to login");
+      // Clear ALL auth state (token + cached user) so components reading
+      // localStorage don't act on a stale session.
       removeAuthToken();
+      localStorage.removeItem("currentUser");
+      localStorage.removeItem("userEmail");
 
-      if (
-        window.location.pathname !== "/login" &&
-        window.location.pathname !== "/signup" &&
-        window.location.pathname !== "/create-event" &&
-        !window.location.pathname.startsWith("/profile/")
-      ) {
-        window.location.href = "/login";
+      // Redirect to login preserving the intended destination, instead of
+      // silently failing on exempted paths.
+      const { pathname, search } = window.location;
+      if (pathname !== "/login" && pathname !== "/signup") {
+        const next = encodeURIComponent(pathname + search);
+        window.location.href = `/login?next=${next}`;
       }
     }
     return Promise.reject(error);

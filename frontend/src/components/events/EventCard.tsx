@@ -167,7 +167,7 @@ export function EventCard({
       const result = await eventService.refundEvent(event.id);
 
       toast({
-        title: "Refund Successful!",
+        title: "Booking Cancelled",
         description: result.message,
         className: "bg-green-500 text-white border-green-600",
         duration: 3000,
@@ -180,8 +180,8 @@ export function EventCard({
       }
     } catch (err) {
       toast({
-        title: "Refund Failed",
-        description: getErrorMessage(err, "Failed to process refund"),
+        title: "Cancellation Failed",
+        description: getErrorMessage(err, "Failed to cancel booking"),
         variant: "destructive",
         duration: 4000,
       });

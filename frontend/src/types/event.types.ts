@@ -47,6 +47,6 @@ export interface RefundResponse {
 export interface EventParticipant {
   id: string;
   name: string;
-  profile_picture?: string | null;
+  profilePicture?: string | null;
   status: string;
 }

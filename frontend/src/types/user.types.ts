@@ -4,16 +4,29 @@ export interface User {
   email: string;
   university?: string | null;
   description?: string | null;
-  profile_picture?: string | null;
-  created_at: string;
+  profilePicture?: string | null;
+  createdAt: string;
   // Referral system
-  invite_code?: string | null;
-  referred_by_user_id?: string | null;
-  referred_by_name?: string | null;
+  inviteCode?: string | null;
+  referredByUserId?: string | null;
+  referredByName?: string | null;
   // Taste profile + onboarding
-  taste_archetype?: string | null;
-  taste_description?: string | null;
-  onboarding_completed?: boolean;
+  tasteArchetype?: string | null;
+  tasteDescription?: string | null;
+  onboardingCompleted?: boolean;
+}
+
+// Public profile shape returned by GET /users/{id} - no email, Stripe, or
+// referral internals (those only exist on the authenticated /users/me).
+export interface PublicUser {
+  id: string;
+  name: string;
+  university?: string | null;
+  description?: string | null;
+  profilePicture?: string | null;
+  tasteArchetype?: string | null;
+  tasteDescription?: string | null;
+  createdAt: string;
 }
 
 export interface UserCreate {
@@ -21,7 +34,7 @@ export interface UserCreate {
   email: string;
   university: string;
   password: string;
-  invite_code?: string;
+  inviteCode?: string;
 }
 
 export interface QuizOption {
@@ -38,13 +51,13 @@ export interface QuizQuestion {
 }
 
 export interface TasteProfileResponse {
-  taste_archetype: string;
-  taste_description: string;
-  onboarding_completed: boolean;
+  tasteArchetype: string;
+  tasteDescription: string;
+  onboardingCompleted: boolean;
 }
 
 export interface UserUpdate {
   university?: string | null;
   description?: string | null;
-  profile_picture?: string | null;
+  profilePicture?: string | null;
 }

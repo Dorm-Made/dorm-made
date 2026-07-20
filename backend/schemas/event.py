@@ -19,12 +19,18 @@ class EventCreate(EventBase):
 
 
 class EventUpdate(BaseModel):
-    title: str
-    description: str
-    max_participants: int
-    location: str
-    event_date: str
-    price: int
+    # All optional: this is a partial-update (PATCH-style) payload
+    title: Optional[str] = None
+    description: Optional[str] = None
+    max_participants: Optional[int] = None
+    location: Optional[str] = None
+    event_date: Optional[str] = None
+    price: Optional[int] = None
+
+    model_config = ConfigDict(
+        alias_generator=to_camel,
+        populate_by_name=True,
+    )
 
 
 class Event(EventBase):

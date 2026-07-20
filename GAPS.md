@@ -1,5 +1,10 @@
 # GAPS.md - Honest audit
 
+> STATUS (July 19, 2026): all 25 items were addressed in the overnight run.
+> See OVERNIGHT-REPORT-2026-07-19.md for what changed, what needs Franco's
+> review, and the two deployment steps still required (run the new migration;
+> subscribe the Stripe webhook to payment_intent.canceled).
+
 Ordered by severity, most important first. Each item: what, where, why it matters, and a fix scoped small enough to execute as a single task. "CRITICAL" items involve money, auth, or data loss.
 
 ---

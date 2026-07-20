@@ -29,7 +29,7 @@ export default function Onboarding() {
   const [brokenImages, setBrokenImages] = useState<Record<string, boolean>>({});
 
   const currentUser = JSON.parse(localStorage.getItem("currentUser") || "null");
-  const isRetake = searchParams.get("retake") === "1" || Boolean(currentUser?.onboarding_completed);
+  const isRetake = searchParams.get("retake") === "1" || Boolean(currentUser?.onboardingCompleted);
 
   useEffect(() => {
     if (!currentUser) {
@@ -78,9 +78,9 @@ export default function Onboarding() {
       // Keep the cached user in sync so the onboarding gate opens
       const stored = JSON.parse(localStorage.getItem("currentUser") || "null");
       if (stored) {
-        stored.onboarding_completed = true;
-        stored.taste_archetype = profile.taste_archetype;
-        stored.taste_description = profile.taste_description;
+        stored.onboardingCompleted = true;
+        stored.tasteArchetype = profile.tasteArchetype;
+        stored.tasteDescription = profile.tasteDescription;
         localStorage.setItem("currentUser", JSON.stringify(stored));
         window.dispatchEvent(new CustomEvent("userLogin"));
       }
@@ -115,10 +115,10 @@ export default function Onboarding() {
           </div>
           <div>
             <p className="text-sm text-muted-foreground mb-1">Your taste profile</p>
-            <h1 className="text-3xl font-bold text-primary">{result.taste_archetype}</h1>
+            <h1 className="text-3xl font-bold text-primary">{result.tasteArchetype}</h1>
           </div>
           <p className="text-base leading-relaxed text-foreground/90">
-            {result.taste_description}
+            {result.tasteDescription}
           </p>
           <p className="text-xs text-muted-foreground">
             This shows on your profile - you can retake the quiz anytime from there.

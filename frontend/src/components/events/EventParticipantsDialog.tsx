@@ -131,7 +131,7 @@ export function EventParticipantsDialog({
                   <div className="flex items-center gap-3">
                     <Avatar>
                       <AvatarImage
-                        src={participant.profile_picture || undefined}
+                        src={participant.profilePicture || undefined}
                         alt={participant.name}
                       />
                       <AvatarFallback>

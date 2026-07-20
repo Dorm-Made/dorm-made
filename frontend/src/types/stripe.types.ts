@@ -1,13 +1,13 @@
 export interface StripeConnectResponse {
-  onboarding_url: string;
-  account_id: string;
+  onboardingUrl: string;
+  accountId: string;
 }
 
 export interface StripeStatusResponse {
   connected: boolean;
-  charges_enabled: boolean;
-  onboarding_complete: boolean;
-  account_id: string | null;
+  chargesEnabled: boolean;
+  onboardingComplete: boolean;
+  accountId: string | null;
 }
 
 export interface CreateCheckoutSessionResponse {
@@ -20,5 +20,5 @@ export interface SessionStatusResponse {
 }
 
 export interface StripeLoginLinkResponse {
-  account_url: string;
+  accountUrl: string;
 }
