@@ -33,6 +33,17 @@ class EventUpdate(BaseModel):
     )
 
 
+class CalendarInviteRequest(BaseModel):
+    """Foodie's chosen email for their post-booking calendar invite."""
+
+    email: str
+
+    model_config = ConfigDict(
+        alias_generator=to_camel,
+        populate_by_name=True,
+    )
+
+
 class Event(EventBase):
     id: str
     host_user_id: str

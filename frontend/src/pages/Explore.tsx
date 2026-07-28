@@ -6,6 +6,7 @@ import { Footer } from "@/components/home/Footer";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useEvents } from "@/hooks/use-events";
 import { EventCard } from "@/components/events/EventCard";
+import { CalendarInviteDialog } from "@/components/events/CalendarInviteDialog";
 import { useToast } from "@/hooks/use-toast";
 import { stripeService, mealService } from "@/services";
 import { analytics } from "@/lib/analytics";
@@ -14,6 +15,8 @@ export default function Explore() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState("all");
   const [currentUser, setCurrentUser] = useState<any>(null);
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const [inviteEventId, setInviteEventId] = useState<string | null>(null);
   const { toast } = useToast();
   const { allEvents, myEvents, joinedEvents, loading, refreshAllData } = useEvents();
 
@@ -57,6 +60,20 @@ export default function Explore() {
             await refreshAllData();
 
             const pendingJoinStr = sessionStorage.getItem("pendingEventJoin");
+
+            // Offer a calendar invite for the event they just booked
+            if (pendingJoinStr) {
+              try {
+                const bookedEventId = JSON.parse(pendingJoinStr).eventId ?? null;
+                if (bookedEventId) {
+                  setInviteEventId(bookedEventId);
+                  setInviteOpen(true);
+                }
+              } catch {
+                /* ignore malformed pending-join */
+              }
+            }
+
             if (pendingJoinStr && currentUser) {
               try {
                 const { eventId } = JSON.parse(pendingJoinStr);
@@ -208,6 +225,13 @@ export default function Explore() {
           </TabsContent>
         </Tabs>
       </main>
+
+      <CalendarInviteDialog
+        isOpen={inviteOpen}
+        onClose={() => setInviteOpen(false)}
+        eventId={inviteEventId}
+        defaultEmail={currentUser?.email || ""}
+      />
 
       <Footer />
     </div>

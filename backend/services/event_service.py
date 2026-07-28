@@ -3,6 +3,7 @@ from typing import List, Optional, Dict, Any, Tuple
 from sqlalchemy import desc
 from sqlalchemy.orm import Session
 from datetime import datetime, timezone
+import re
 import uuid
 from stripe import StripeError, InvalidRequestError
 import logging
@@ -17,14 +18,18 @@ from schemas.refund import RefundResponse
 from utils.converters import event_model_to_schema, event_participant_models_to_schemas
 from utils.supabase import supabase
 from utils.uploads import upload_image
+from utils.calendar import build_event_ics
 from .user_service import get_user
 from .meal_service import get_meal_name
+from .gateways import email_service
 from .gateways.stripe_service import (
     capture_payment_intent,
     cancel_payment_intent,
     create_refund,
     retrieve_connected_account,
 )
+
+_EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
 logger = logging.getLogger(__name__)
 
@@ -685,3 +690,87 @@ async def accept_user_participation(
         raise HTTPException(
             status_code=400, detail=f"Error accepting user participation: {str(e)}"
         )
+
+
+async def send_event_calendar_invite(
+    event_id: str, user_id: str, to_email: str, db: Session
+) -> Dict[str, str]:
+    """Email the requesting foodie a calendar invite (.ics) for a booked event.
+
+    Gated on an active participation so it can't be used to send mail to
+    arbitrary addresses; ingredients are included when a meal is linked.
+    """
+    to_email = (to_email or "").strip()
+    if not _EMAIL_RE.match(to_email):
+        raise HTTPException(status_code=422, detail="Please enter a valid email address")
+
+    event_model = (
+        db.query(EventModel)
+        .filter(EventModel.id == event_id, EventModel.is_deleted == False)
+        .first()
+    )
+    if not event_model:
+        raise HTTPException(status_code=404, detail="Event not found")
+
+    participation = (
+        db.query(EventParticipantModel)
+        .filter(
+            EventParticipantModel.event_id == event_id,
+            EventParticipantModel.participant_id == user_id,
+            EventParticipantModel.status.in_(ACTIVE_STATUSES),
+        )
+        .first()
+    )
+    if not participation:
+        # The booking row is written by the Stripe webhook, which can briefly
+        # lag the post-payment redirect - the client retries on this 409.
+        raise HTTPException(
+            status_code=409,
+            detail="Your booking is still finalizing - try again in a few seconds.",
+        )
+
+    meal = None
+    if event_model.meal_id:
+        meal = (
+            db.query(MealModel)
+            .filter(
+                MealModel.id == event_model.meal_id,
+                MealModel.is_deleted == False,
+            )
+            .first()
+        )
+
+    host = db.query(UserModel).filter(UserModel.id == event_model.host_user_id).first()
+    host_name = host.name if host else None
+
+    when_str = event_model.event_date.strftime("%A, %B %d, %Y at %I:%M %p")
+
+    ics = build_event_ics(
+        event_id=event_model.id,
+        title=event_model.title,
+        description=event_model.description,
+        location=event_model.location,
+        start=event_model.event_date,
+        host_name=host_name,
+        ingredients=meal.ingredients if meal else None,
+    )
+
+    try:
+        await email_service.send_calendar_invite(
+            to_email=to_email,
+            event_title=event_model.title,
+            event_when=when_str,
+            event_location=event_model.location,
+            ics_content=ics,
+        )
+    except Exception as e:
+        logger.error(
+            f"Calendar invite email failed for event {event_id}: {e}", exc_info=True
+        )
+        raise HTTPException(
+            status_code=502,
+            detail="Could not send the calendar invite. Please try again.",
+        )
+
+    logger.info(f"Calendar invite sent for event {event_id} to {to_email}")
+    return {"message": "Calendar invite sent"}

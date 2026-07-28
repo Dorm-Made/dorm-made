@@ -61,6 +61,14 @@ async function refundEvent(eventId: string): Promise<RefundResponse> {
   return response.data;
 }
 
+async function sendCalendarInvite(
+  eventId: string,
+  email: string,
+): Promise<{ message: string }> {
+  const response = await httpClient.post(`/events/${eventId}/calendar-invite`, { email });
+  return response.data;
+}
+
 export const eventService = {
   createEvent,
   getEvents,
@@ -73,4 +81,5 @@ export const eventService = {
   updateEvent,
   deleteEvent,
   refundEvent,
+  sendCalendarInvite,
 };

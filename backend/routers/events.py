@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, File, UploadFile, Form, HTTPException
 from typing import List, Annotated, Optional, cast
 from sqlalchemy.orm import Session
 
-from schemas.event import Event, EventCreate, EventUpdate
+from schemas.event import Event, EventCreate, EventUpdate, CalendarInviteRequest
 from schemas.event_participant import (
     EventParticipant,
     AcceptParticipationRequest,
@@ -192,6 +192,19 @@ async def refund_event_endpoint(
 ):
     """Process a refund for the authenticated user's event participation"""
     return await event_service.refund_event_participation(event_id, current_user_id, db)
+
+
+@router.post("/{event_id}/calendar-invite")
+async def send_calendar_invite_endpoint(
+    event_id: str,
+    request: CalendarInviteRequest,
+    current_user_id: Annotated[str, Depends(get_current_user_id)],
+    db: Session = Depends(get_db),
+):
+    """Email the authenticated foodie a calendar invite for an event they booked"""
+    return await event_service.send_event_calendar_invite(
+        event_id, current_user_id, request.email, db
+    )
 
 
 @router.post("/accept-participation")
