@@ -10,6 +10,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { useProfile } from "@/hooks/use-profile";
 import { useProfilePhoto } from "@/hooks/use-profile-photo";
+import { useImageUpload } from "@/hooks/use-image-upload";
+import { ImageAdjuster } from "@/components/shared/ImageAdjuster";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { ProfileTabs } from "@/components/profile/ProfileTabs";
 import { ProfileRatingBadges } from "@/components/reviews/ProfileRatingBadges";
@@ -49,11 +52,18 @@ export default function Profile() {
     isOwnProfile,
   } = useProfile(userId);
 
-  const { uploadingPhoto, fileInputRef, handleFileSelect, handleUploadPhoto } = useProfilePhoto(
-    (updatedUser) => {
-      updateEditingUser(updatedUser);
-    },
-  );
+  const { uploadingPhoto, fileInputRef, handleUploadPhoto } = useProfilePhoto((updatedUser) => {
+    updateEditingUser(updatedUser);
+  });
+
+  // Pick + zoom/drag/reposition before uploading (same editor as recipes/events)
+  const {
+    rawPreview,
+    rawFileName,
+    needsAdjust,
+    handleImageChange,
+    handleRemoveImage,
+  } = useImageUpload();
 
   useEffect(() => {
     const stripeParam = searchParams.get("stripe");
@@ -107,10 +117,10 @@ export default function Profile() {
       .slice(0, 2);
   };
 
-  const handleFileSelectWrapper = (e: React.ChangeEvent<HTMLInputElement>) => {
-    handleFileSelect(e);
-    const file = e.target.files?.[0];
-    if (file && userId) {
+  // After the user zooms/repositions in the adjuster, bake the square crop and upload it
+  const handleApplyProfilePhoto = (file: File) => {
+    handleRemoveImage(); // close the adjuster + clear the raw pick
+    if (userId) {
       handleUploadPhoto(file, userId);
     }
   };
@@ -187,8 +197,8 @@ export default function Profile() {
                     </Avatar>
                     <input
                       type="file"
-                      accept="image/jpeg,image/jpg,image/png"
-                      onChange={handleFileSelectWrapper}
+                      accept="image/jpeg,image/jpg,image/png,image/webp"
+                      onChange={handleImageChange}
                       ref={fileInputRef}
                       className="hidden"
                       id="profile-photo-upload"
@@ -393,6 +403,30 @@ export default function Profile() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Zoom / drag / reposition your profile photo before it uploads */}
+        <Dialog
+          open={needsAdjust && !!rawPreview}
+          onOpenChange={(open) => {
+            if (!open) handleRemoveImage();
+          }}
+        >
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Adjust your profile photo</DialogTitle>
+            </DialogHeader>
+            {rawPreview && (
+              <ImageAdjuster
+                src={rawPreview}
+                aspect={1}
+                outputWidth={512}
+                fileName={rawFileName || "profile.jpg"}
+                onApply={handleApplyProfilePhoto}
+                onCancel={handleRemoveImage}
+              />
+            )}
+          </DialogContent>
+        </Dialog>
       </main>
 
       <Footer />
