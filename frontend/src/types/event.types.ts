@@ -1,8 +1,8 @@
 export interface Event {
   id: string;
   hostUserId: string;
-  mealId: string;
-  mealName: string;
+  mealId?: string;
+  mealName?: string;
   title: string;
   description: string;
   maxParticipants: number;

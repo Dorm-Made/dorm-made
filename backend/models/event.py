@@ -25,8 +25,8 @@ class EventModel(Base):
     host_user_id: Mapped[str] = mapped_column(
         UUID(as_uuid=False), ForeignKey("users.id"), nullable=False, index=True
     )
-    meal_id: Mapped[str] = mapped_column(
-        UUID(as_uuid=False), ForeignKey("meals.id"), nullable=False, index=True
+    meal_id: Mapped[Optional[str]] = mapped_column(
+        UUID(as_uuid=False), ForeignKey("meals.id"), nullable=True, index=True
     )
     title: Mapped[str] = mapped_column(String, nullable=False)
     description: Mapped[str] = mapped_column(Text, nullable=False)

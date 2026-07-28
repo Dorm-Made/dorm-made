@@ -5,7 +5,7 @@ from typing import Optional
 
 
 class EventBase(BaseModel):
-    meal_id: str
+    meal_id: Optional[str] = None
     title: str
     description: str
     max_participants: int

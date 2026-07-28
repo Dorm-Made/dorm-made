@@ -43,10 +43,10 @@ async def create_event_endpoint(
     max_participants: Annotated[int, Form()],
     location: Annotated[str, Form()],
     event_date: Annotated[str, Form()],
-    meal_id: Annotated[str, Form()],
     currency: Annotated[str, Form()],
     current_user_id: Annotated[str, Depends(get_current_user_id)],
     db: Session = Depends(get_db),
+    meal_id: Annotated[Optional[str], Form()] = None,
     price: Annotated[Optional[str], Form()] = None,
     image: Annotated[Optional[UploadFile], File()] = None,
 ):

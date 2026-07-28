@@ -67,7 +67,10 @@ export default function CreateEvent() {
     payload.append("max_participants", formData.maxParticipants);
     payload.append("event_date", formData.eventDate);
     payload.append("location", formData.location);
-    payload.append("meal_id", selectedMeal!.id);
+    // Recipe is optional - thematic events can be posted without a dish
+    if (selectedMeal) {
+      payload.append("meal_id", selectedMeal.id);
+    }
 
     payload.append("price", getPriceInCents(formData.price).toString());
     payload.append("currency", formData.currency);
@@ -80,16 +83,6 @@ export default function CreateEvent() {
   };
 
   const handleFinalize = async () => {
-    if (!selectedMeal) {
-      toast({
-        title: "Error",
-        description: "Please select a meal",
-        variant: "destructive",
-        duration: 1500,
-      });
-      return;
-    }
-
     if (!validateEventDetails()) {
       toast({
         title: "Error",
@@ -119,9 +112,9 @@ export default function CreateEvent() {
       const event = await eventService.createEvent(payload);
 
       const currentUser = localStorage.getItem("currentUser");
-      if (currentUser) {
+      if (currentUser && selectedMeal) {
         const user: User = JSON.parse(currentUser);
-        analytics.eventCreated({ userId: user.id, event, meal: selectedMeal! });
+        analytics.eventCreated({ userId: user.id, event, meal: selectedMeal });
       }
 
       clearDraft();
@@ -149,7 +142,7 @@ export default function CreateEvent() {
   const canProceedToNext = () => {
     switch (currentStep) {
       case Step.MEAL:
-        return selectedMeal !== null;
+        return true; // recipe is optional - hosts can skip to a thematic event
       case Step.EVENT_DETAILS:
         return validateEventDetails();
       case Step.SUMMARY:
