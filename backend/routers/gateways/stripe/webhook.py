@@ -6,12 +6,14 @@ import uuid
 import logging
 
 from utils.database import get_db
+from utils.calendar import build_event_ics
 from services.gateways import stripe_service
 from services.gateways import email_service
 from services import user_service
 from schemas.stripe import WebhookResponse
 from models.event import EventModel
 from models.event_participant import EventParticipantModel
+from models.meal import MealModel
 
 logger = logging.getLogger(__name__)
 
@@ -155,8 +157,8 @@ async def handle_checkout_session_completed(
         # 500 so Stripe retries; do NOT return 200 here.
         raise HTTPException(status_code=500, detail="Webhook processing failed")
 
-    # Email is best-effort and must never be confused with a booking failure:
-    # it runs after the commit and swallows its own errors.
+    # Emails are best-effort and must never be confused with a booking failure:
+    # they run after the commit and swallow their own errors.
     if chef_email and event_title:
         try:
             await email_service.send_chef_notification(
@@ -164,6 +166,42 @@ async def handle_checkout_session_completed(
             )
         except Exception as e:
             logger.error("Chef notification email failed (booking OK): %s", e)
+
+    # Foodie booking confirmation + calendar invite to their on-file email.
+    # Sent regardless of whether they use the in-app "email me the invite" prompt.
+    try:
+        foodie = user_service.get_user_by_id(foodie_id, db)
+        if foodie and foodie.email:
+            meal = None
+            if event_model.meal_id:
+                meal = (
+                    db.query(MealModel)
+                    .filter(
+                        MealModel.id == event_model.meal_id,
+                        MealModel.is_deleted == False,
+                    )
+                    .first()
+                )
+            host = user_service.get_user_by_id(event_model.host_user_id, db)
+            ics = build_event_ics(
+                event_id=event_model.id,
+                title=event_model.title,
+                description=event_model.description,
+                location=event_model.location,
+                start=event_model.event_date,
+                host_name=host.name if host else None,
+                ingredients=meal.ingredients if meal else None,
+            )
+            when_str = event_model.event_date.strftime("%A, %B %d, %Y at %I:%M %p")
+            await email_service.send_booking_confirmation(
+                to_email=foodie.email,
+                event_title=event_model.title,
+                event_when=when_str,
+                event_location=event_model.location,
+                ics_content=ics,
+            )
+    except Exception as e:
+        logger.error("Foodie confirmation email failed (booking OK): %s", e)
 
     return WebhookResponse(
         received=True, message=f"Created participation for event {event_id}"

@@ -80,7 +80,10 @@ export default function Explore() {
                 const joinedEvent = joinedEvents.find((e) => e.id === eventId);
 
                 if (joinedEvent) {
-                  const meal = await mealService.getMeal(joinedEvent.mealId);
+                  // Recipe-free events have no mealId - skip the meal fetch
+                  const meal = joinedEvent.mealId
+                    ? await mealService.getMeal(joinedEvent.mealId)
+                    : undefined;
                   analytics.eventJoined({
                     userId: currentUser.id,
                     event: joinedEvent,

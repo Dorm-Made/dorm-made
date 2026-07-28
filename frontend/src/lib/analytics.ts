@@ -48,7 +48,7 @@ function stripeOnboardingCompleted(userId: string): void {
   posthog.capture("stripe_onboarding_completed", { user_id: userId });
 }
 
-function eventCreated(params: { userId: string; event: Event; meal: Meal }): void {
+function eventCreated(params: { userId: string; event: Event; meal?: Meal }): void {
   posthog.capture("event_created", {
     user_id: params.userId,
     event_id: params.event.id,
@@ -57,12 +57,12 @@ function eventCreated(params: { userId: string; event: Event; meal: Meal }): voi
     event_price: params.event.price,
     event_max_participants: params.event.maxParticipants,
     has_picture: Boolean(params.event.imageUrl),
-    meal_id: params.meal.id,
-    meal_title: params.meal.title,
+    meal_id: params.meal?.id,
+    meal_title: params.meal?.title,
   });
 }
 
-function eventJoined(params: { userId: string; event: Event; meal: Meal }): void {
+function eventJoined(params: { userId: string; event: Event; meal?: Meal }): void {
   posthog.capture("event_joined", {
     user_id: params.userId,
     event_id: params.event.id,
@@ -71,8 +71,8 @@ function eventJoined(params: { userId: string; event: Event; meal: Meal }): void
     event_price: params.event.price,
     event_max_participants: params.event.maxParticipants,
     has_picture: Boolean(params.event.imageUrl),
-    meal_id: params.meal.id,
-    meal_title: params.meal.title,
+    meal_id: params.meal?.id,
+    meal_title: params.meal?.title,
   });
 }
 
