@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
+import { Button } from "@/components/ui/button";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/home/Footer";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -164,10 +165,14 @@ export default function Explore() {
             <div className="flex overflow-x-auto gap-4 pb-4 lg:grid lg:grid-cols-3 lg:gap-6 lg:overflow-visible">
               {myEvents.length === 0 ? (
                 <div className="col-span-full text-center py-12">
+                  <div className="text-4xl mb-4">🍽️</div>
                   <h3 className="text-lg font-semibold mb-2">No events created yet</h3>
-                  <p className="text-muted-foreground">
-                    Create your first culinary event to get started!
+                  <p className="text-muted-foreground mb-4">
+                    Host a dinner and share what you cook - your table starts here.
                   </p>
+                  <Button asChild>
+                    <Link to="/create-event">Post your first event</Link>
+                  </Button>
                 </div>
               ) : (
                 myEvents.map((event) => (

@@ -32,6 +32,10 @@ logger = logging.getLogger(__name__)
 # EventModel.current_participants is only a denormalized mirror.
 ACTIVE_STATUSES = ("booked", "confirmed")
 
+# Showcase/demo host(s): their events appear in the feed for inspiration but
+# can't be booked (no real Stripe payout). Booking returns a fun message.
+SHOWCASE_HOST_IDS = {"c936d774-91d7-4466-9dda-57445a0aba79"}  # Steve Trump
+
 
 def _as_utc(dt: datetime) -> datetime:
     """Treat naive datetimes as UTC (SQLite test dbs return naive values)."""
@@ -51,7 +55,7 @@ def count_active_participants(event_id: str, db: Session) -> int:
 
 def _events_with_meal_query(db: Session):
     """Base query joining events with meal titles in a single round-trip."""
-    return db.query(EventModel, MealModel.title).outerjoin(
+    return db.query(EventModel, MealModel.title, MealModel.image_url).outerjoin(
         MealModel,
         (MealModel.id == EventModel.meal_id) & (MealModel.is_deleted == False),
     )
@@ -59,8 +63,8 @@ def _events_with_meal_query(db: Session):
 
 def _rows_to_schemas(rows) -> List[Event]:
     return [
-        event_model_to_schema(event_model, meal_title or "")
-        for event_model, meal_title in rows
+        event_model_to_schema(event_model, meal_title or "", meal_image)
+        for event_model, meal_title, meal_image in rows
     ]
 
 
@@ -73,8 +77,19 @@ def get_event(event_id: str, db: Session) -> Optional[Event]:
             .first()
         )
         if event_model:
-            meal_name = get_meal_name(event_model.meal_id, db)
-            return event_model_to_schema(event_model, meal_name)
+            meal = (
+                db.query(MealModel)
+                .filter(
+                    MealModel.id == event_model.meal_id,
+                    MealModel.is_deleted == False,
+                )
+                .first()
+            )
+            return event_model_to_schema(
+                event_model,
+                meal.title if meal else "",
+                meal.image_url if meal else None,
+            )
         return None
     except Exception as e:
         logger.error(f"Error getting event {event_id}: {e}", exc_info=True)
@@ -182,6 +197,12 @@ async def validate_checkout_requirements(
     if not event:
         logger.warning(f"Checkout validation failed: Event {event_id} not found")
         raise HTTPException(status_code=404, detail="Event not found")
+
+    if event.host_user_id in SHOWCASE_HOST_IDS:
+        raise HTTPException(
+            status_code=400,
+            detail="Steve Trump is our spirit animal and model-user - not currently hosting, just inspiring. 🐂",
+        )
 
     if event.host_user_id == foodie_id:
         logger.warning(f"Host {foodie_id} attempted to join their own event {event_id}")

@@ -3,7 +3,7 @@ Model to Schema converters
 Eliminates code duplication by providing reusable conversion functions
 """
 
-from typing import List
+from typing import List, Optional
 from models.user import UserModel
 from models.event import EventModel
 from models.event_participant import EventParticipantModel
@@ -37,13 +37,16 @@ def user_model_to_schema(
     )
 
 
-def event_model_to_schema(event_model: EventModel, meal_name: str = "") -> Event:
+def event_model_to_schema(
+    event_model: EventModel, meal_name: str = "", meal_image_url: Optional[str] = None
+) -> Event:
     """Convert EventModel to Event schema"""
     return Event(
         id=event_model.id,
         host_user_id=event_model.host_user_id,
         meal_id=event_model.meal_id,
         meal_name=meal_name,
+        meal_image_url=meal_image_url,
         title=event_model.title,
         description=event_model.description,
         max_participants=event_model.max_participants,

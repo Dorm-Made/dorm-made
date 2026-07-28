@@ -198,8 +198,12 @@ export function EventCard({
         className="flex flex-col over:shadow-lg transition-shadow min-w-[85vw] lg:min-w-0"
       >
         <div className="aspect-video bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center relative overflow-hidden">
-          {event.imageUrl ? (
-            <img src={event.imageUrl} alt={event.title} className="w-full h-full object-cover" />
+          {event.imageUrl || event.mealImageUrl ? (
+            <img
+              src={event.imageUrl || event.mealImageUrl}
+              alt={event.title}
+              className="w-full h-full object-cover"
+            />
           ) : (
             <div className="text-center">
               <div className="text-4xl mb-2">🍳</div>

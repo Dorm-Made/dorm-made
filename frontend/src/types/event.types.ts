@@ -10,6 +10,7 @@ export interface Event {
   eventDate: string;
   location: string;
   imageUrl?: string;
+  mealImageUrl?: string;
   price: number;
   currency: string;
   createdAt: string;
