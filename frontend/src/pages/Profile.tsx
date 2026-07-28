@@ -337,22 +337,6 @@ export default function Profile() {
                           {charCount(editingUser?.description, LIMITS.PROFILE_ABOUT)}
                         </p>
                       </div>
-
-                      <div>
-                        <Label htmlFor="profile_picture" className="mb-2 text-sm">
-                          Profile Photo URL
-                        </Label>
-                        <Input
-                          id="profile_picture"
-                          value={editingUser?.profilePicture || ""}
-                          onChange={(e) => updateEditingUser({ profilePicture: e.target.value })}
-                          placeholder="https://example.com/photo.jpg"
-                          type="url"
-                        />
-                        <p className="text-xs text-muted-foreground mt-1">
-                          Paste your profile photo URL
-                        </p>
-                      </div>
                     </div>
                   ) : (
                     <>

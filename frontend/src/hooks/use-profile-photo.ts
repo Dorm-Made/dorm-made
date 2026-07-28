@@ -32,8 +32,8 @@ export function useProfilePhoto(onPhotoUploaded?: (user: User) => void): UseProf
         localStorage.setItem("currentUser", JSON.stringify(updatedUser));
 
         toast({
-          title: "Sucesso!",
-          description: "Foto de perfil atualizada com sucesso",
+          title: "Success!",
+          description: "Profile photo updated successfully",
           className: "bg-green-500 text-white border-green-600",
           duration: 1500,
         });
@@ -46,7 +46,7 @@ export function useProfilePhoto(onPhotoUploaded?: (user: User) => void): UseProf
           onPhotoUploaded(updatedUser);
         }
       } catch (error) {
-        console.error("Error fetching meals:", error);
+        console.error("Error uploading profile photo:", error);
 
         if (isAxiosError(error)) {
           if (error.response?.status !== 401) {
@@ -74,8 +74,8 @@ export function useProfilePhoto(onPhotoUploaded?: (user: User) => void): UseProf
       const allowedTypes = ["image/jpeg", "image/jpg", "image/png"];
       if (!allowedTypes.includes(file.type)) {
         toast({
-          title: "Erro",
-          description: "Apenas arquivos JPEG e PNG são permitidos",
+          title: "Error",
+          description: "Only JPEG and PNG files are allowed",
           variant: "destructive",
           duration: 1500,
         });
@@ -86,8 +86,8 @@ export function useProfilePhoto(onPhotoUploaded?: (user: User) => void): UseProf
       const maxSize = 5 * 1024 * 1024; // 5MB
       if (file.size > maxSize) {
         toast({
-          title: "Erro",
-          description: "O arquivo excede o limite de 5MB",
+          title: "Error",
+          description: "File exceeds the 5MB limit",
           variant: "destructive",
           duration: 1500,
         });
